@@ -29,7 +29,7 @@ if mode == "dev":
 
     def run(updater):
         updater.start_polling()
-
+        updater.idle()
 
 elif mode == "prod":
 
@@ -98,7 +98,8 @@ def city(update: Update, context: CallbackContext):
 def storage(update: Update, context: CallbackContext):
     """Handle storage adress"""
     update.message.reply_text(
-        f"Вы выбрали хранилище по адресу: {update.message.text}"
+        f"Вы выбрали хранилище по адресу: {update.message.text}",
+        reply_markup=ReplyKeyboardRemove()
     )
     return ConversationHandler.END
 
@@ -128,10 +129,4 @@ if __name__ == "__main__":
 
     dispatcher.add_handler(conv_handler)
 
-    # Start the Bot
-    updater.start_polling()
-
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
-    updater.idle()
+    run(updater)
