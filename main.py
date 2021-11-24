@@ -95,6 +95,14 @@ def city(update: Update, context: CallbackContext):
     return StateEnum.STORAGE
 
 
+def storage(update: Update, context: CallbackContext):
+    """Handle storage adress"""
+    update.message.reply_text(
+        f"Вы выбрали хранилище по адресу: {update.message.text}"
+    )
+    return ConversationHandler.END
+
+
 def cancel(update: Update, context: CallbackContext) -> int:
     """Cancels and ends the conversation."""
     user = update.message.from_user
@@ -113,6 +121,7 @@ if __name__ == "__main__":
         entry_points=[CommandHandler("start", start_handler)],
         states={
             StateEnum.CITY: [MessageHandler(Filters.regex("^(Москва)$"), city)],
+            StateEnum.STORAGE: [MessageHandler(Filters.text, storage)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
