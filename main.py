@@ -47,6 +47,12 @@ else:
     sys.exit(1)
 
 
+def keyboard_row_divider(full_list, row_width=2):
+    """Divide list into rows for keyboard"""
+    for i in range(0, len(full_list), row_width):
+        yield full_list[i : i + row_width]
+
+
 def start_handler(update: Update, context: CallbackContext):
     """Start conversation"""
     logger.info(f'User {update.effective_user["id"]} started bot')
@@ -74,7 +80,8 @@ def city(update: Update, context: CallbackContext):
         "Саринский пр-д, 26",
         "Мясницкая ул., 65",
     ]
-    reply_keyboard = [storages]
+    reply_keyboard = list(keyboard_row_divider(storages))
+
     update.message.reply_text(
         f"Выберете адрес хранилища в городе {city_name}:",
         reply_markup=ReplyKeyboardMarkup(
