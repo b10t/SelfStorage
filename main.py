@@ -1,11 +1,13 @@
 import logging
 import os
-import random
 import sys
+from enum import Enum, auto
 
 from dotenv import load_dotenv
-from telegram.ext import CommandHandler, Updater, CallbackContext
-from telegram import Update
+from telegram.ext import CommandHandler, \
+    Updater, CallbackContext, ConversationHandler, \
+    MessageHandler, Filters
+from telegram import Update, ReplyKeyboardRemove, ReplyKeyboardMarkup
 
 # Enabling logging
 logging.basicConfig(level=logging.INFO,
@@ -14,8 +16,14 @@ logger = logging.getLogger()
 
 # Getting mode, so we could define run function for local and Heroku setup
 load_dotenv()
-mode = os.getenv("MODE")
+mode = os.getenv("MODE", "dev")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+
+
+class StateEnum(Enum):
+    CITY = auto()
+    STORAGE = auto()
+
 
 if mode == "dev":
     def run(updater):
@@ -24,7 +32,7 @@ elif mode == "prod":
     def run(updater):
         PORT = int(os.environ.get("PORT", "8443"))
         HEROKU_APP_NAME = os.environ.get("HEROKU_APP_NAME")
-        # Code from https://github.com/python-telegram-bot/python-telegram-bot/wiki/Webhooks#heroku
+
         updater.start_webhook(listen="0.0.0.0",
                               port=PORT,
                               url_path=TELEGRAM_TOKEN)
@@ -40,22 +48,71 @@ else:
 def start_handler(update: Update, context: CallbackContext):
     # Creating a handler-function for /start command
     logger.info(f'User {update.effective_user["id"]} started bot')
+    reply_keyboard = [['Москва', 'Ui']]
     update.message.reply_text(
-        "Hello from Python!\nPress /random to get random number")
+        "Привет! Я помогу тебе подобрать, забронировать и "
+        "арендовать пространство для твоих вещей\nВыберите, "
+        "пожалуйста, город:",
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder='Ваш город?',
+            resize_keyboard=True
+        ),
+    )
+    return StateEnum.CITY
 
 
-def random_handler(update: Update, context: CallbackContext):
-    # Creating a handler-function for /random command
-    number = random.randint(0, 10)
-    logger.info(f'User {update.effective_user["id"]} randomed number {number}')
-    update.message.reply_text("Random number: {}".format(number))
+def city(update: Update, context: CallbackContext):
+    """Handle city name"""
+    city_name = update.message.text
+    storages = ['Малая Бронная ул., 52',
+                'Овчинниковская наб., 32',
+                'Саринский пр-д, 26',
+                'Мясницкая ул., 65']
+    reply_keyboard = [storages]
+    update.message.reply_text(
+        f"Выберете адрес хранилища в городе {city_name}:",
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder='Адрес хранилища',
+            resize_keyboard=True
+        )
+    )
+    return StateEnum.STORAGE
+
+
+def cancel(update: Update, context: CallbackContext) -> int:
+    """Cancels and ends the conversation."""
+    user = update.message.from_user
+    logger.info("User %s canceled the conversation.", user.first_name)
+    update.message.reply_text(
+        'Всего доброго!', reply_markup=ReplyKeyboardRemove()
+    )
+
+    return ConversationHandler.END
 
 
 if __name__ == '__main__':
     logger.info("Starting bot")
     updater = Updater(token=TELEGRAM_TOKEN)
 
-    updater.dispatcher.add_handler(CommandHandler("start", start_handler))
-    updater.dispatcher.add_handler(CommandHandler("random", random_handler))
+    dispatcher = updater.dispatcher
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('start', start_handler)],
+        states={
+            StateEnum.CITY: [MessageHandler(Filters.regex('^(Москва)$'), city)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+    )
 
-    run(updater)
+    dispatcher.add_handler(conv_handler)
+
+    # Start the Bot
+    updater.start_polling()
+
+    # Run the bot until you press Ctrl-C or the process receives SIGINT,
+    # SIGTERM or SIGABRT. This should be used most of the time, since
+    # start_polling() is non-blocking and will stop the bot gracefully.
+    updater.idle()
