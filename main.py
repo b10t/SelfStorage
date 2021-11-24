@@ -29,10 +29,7 @@ elif mode == "prod":
                               port=PORT,
                               url_path=TELEGRAM_TOKEN,
                               webhook_url = f'https://{HEROKU_APP_NAME}.herokuapp.com/{TELEGRAM_TOKEN}')
-        # updater.bot.set_webhook(
-        #     "https://{}.herokuapp.com/{}".format(
-        #         HEROKU_APP_NAME,
-        #         TELEGRAM_TOKEN))
+        updater.idle()
 else:
     logger.error("No MODE specified!")
     sys.exit(1)
