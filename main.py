@@ -79,8 +79,7 @@ def city(update: Update, context: CallbackContext):
     connection = psycopg2.connect(DATABASE_URL)
     cursor = connection.cursor()
     cursor.execute("SELECT Address FROM storages")
-    storages = cursor.fetchall()
-
+    storages = list(map(list,cursor.fetchall()))
     city_name = update.message.text
 
     reply_keyboard = list(keyboard_row_divider(storages))
