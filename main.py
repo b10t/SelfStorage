@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import psycopg2
 from enum import Enum, auto
 
 from dotenv import load_dotenv
@@ -18,6 +19,7 @@ logger = logging.getLogger()
 load_dotenv()
 mode = os.getenv("MODE", "dev")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 class StateEnum(Enum):
@@ -74,13 +76,13 @@ def start_handler(update: Update, context: CallbackContext):
 
 def city(update: Update, context: CallbackContext):
     """Handle city name"""
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute("SELECT Address FROM storages")
+    storages = cursor.fetchall()
+
     city_name = update.message.text
-    storages = [
-        "Малая Бронная ул., 52",
-        "Овчинниковская наб., 32",
-        "Саринский пр-д, 26",
-        "Мясницкая ул., 65",
-    ]
+
     reply_keyboard = list(keyboard_row_divider(storages))
 
     update.message.reply_text(
@@ -92,6 +94,7 @@ def city(update: Update, context: CallbackContext):
             resize_keyboard=True,
         ),
     )
+    cursor.close()
     return StateEnum.STORAGE
 
 
