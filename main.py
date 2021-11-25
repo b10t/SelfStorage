@@ -1,13 +1,16 @@
 import logging
 import os
 import sys
-import psycopg2
 from enum import Enum, auto
 
+import psycopg2
 from dotenv import load_dotenv
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
                           Filters, MessageHandler, Updater)
+
+from telegram_handlers import start_person_data, get_user_name
+
 
 # Enabling logging
 logging.basicConfig(
@@ -136,7 +139,22 @@ if __name__ == "__main__":
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
-
     dispatcher.add_handler(conv_handler)
+
+    # person_data
+    dispatcher.add_handler(
+        ConversationHandler(
+            entry_points=[CommandHandler("person_data", start_person_data)],
+            states={
+                "user_name": [MessageHandler(Filters.text, get_user_name)],
+                "user_middle_name": [MessageHandler(Filters.text, get_middle_name)],
+                "user_telephone": [MessageHandler(Filters.text, get_telephone)],
+                # "evaluation": [MessageHandler(Filters.regex('1|2|3|4|5'), anketa_get_evaluation)],
+                # "comment": [MessageHandler(Filters.regex('Пропустить'), anketa_exit_comment),
+                #             MessageHandler(Filters.text, anketa_comment)],
+            },
+            fallbacks=[CommandHandler("cancel", cancel)]
+        )
+    )
 
     run(updater)
