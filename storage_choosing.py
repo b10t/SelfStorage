@@ -11,10 +11,12 @@ from load import logger, DATABASE_URL, keyboard_row_divider
 class StateEnum(Enum):
     START = auto()
     STORAGE = auto()
+    TYPE = auto()
+    DIMENSION = auto()
 
 
 def get_storages() -> List[str]:
-    """Get list of storages from DB"""
+    """Give list of storages from DB"""
     # connection = psycopg2.connect(DATABASE_URL)
     # cursor = connection.cursor()
     # cursor.execute("SELECT Address FROM storages")
@@ -27,12 +29,79 @@ def get_storages() -> List[str]:
     return storages
 
 
-def storage_question(update: Update, context: CallbackContext) -> StateEnum:
+def get_types() -> List[str]:
+    """Give types of possible things"""
+    types = ['Сезонные вещи', 'Другое']
+    return types
+
+
+def get_dimensions() -> List[str]:
+    """Give dimensions for other things with cost"""
+    dimensions = []
+    for i in range(1, 11):
+        dimensions.append(str(i))
+    return dimensions
+
+
+def send_dimensions_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about dimensions for Other things"""
+    dimensions = get_dimensions()
+    reply_keyboard = [dimensions]
+    update.message.reply_text(
+        "Выберите габаритность ячейки",
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder="Габаритность",
+            resize_keyboard=True,
+        )
+    )
+    return StateEnum.DIMENSION
+
+
+def get_dimension(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle dimension of a box"""
+    dimension = update.message.text
+    if not dimension.isnumeric():
+        update.message.reply_text("Простите мы сдаем только целочисленную площадь")
+        return send_dimensions_question(update, context)
+    return ConversationHandler.END
+
+
+def send_type_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about type of things"""
+    types = get_types()
+    reply_keyboard = [types]
+    update.message.reply_text(
+        "Что хотите хранить?",
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder="Тип вещей",
+            resize_keyboard=True,
+        )
+    )
+    return StateEnum.TYPE
+
+
+def get_type(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle type of things"""
+    type_name = update.message.text
+    if type_name not in get_types():
+        update.message.reply_text("Простите, мы пока не храним такое :(")
+        return send_type_question(update, context)
+    if type_name == "Другое":
+        return send_dimensions_question(update, context)
+    return ConversationHandler.END
+
+
+def send_storage_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about address of storage"""
     storages = get_storages()
 
     reply_keyboard = list(keyboard_row_divider(storages))
     update.message.reply_text(
-        f"Выберете адрес хранилища:",
+        "Выберете адрес хранилища:",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard,
             one_time_keyboard=True,
@@ -44,26 +113,26 @@ def storage_question(update: Update, context: CallbackContext) -> StateEnum:
 
 
 def start_handler(update: Update, context: CallbackContext) -> StateEnum:
-    """Start conversation"""
+    """Start conversation and send first question"""
     logger.info(f'User {update.effective_user["id"]} started bot')
     update.message.reply_text(
         "Привет! Я помогу тебе подобрать, забронировать и "
         "арендовать пространство для твоих вещей")
-    return storage_question(update, context)
+    return send_storage_question(update, context)
 
 
-def storage(update: Update, context: CallbackContext) -> StateEnum:
+def get_storage(update: Update, context: CallbackContext) -> StateEnum:
     """Handle storage address"""
     storage_name = update.message.text
     if storage_name not in get_storages():
-        update.message.reply_text(f"Простите, по данному адресу у нас пока нет складов (")
-        return storage_question(update, context)
+        update.message.reply_text("Простите, по данному адресу у нас пока нет складов (")
+        return send_storage_question(update, context)
 
     update.message.reply_text(
         f"Вы выбрали хранилище по адресу: {update.message.text}",
         reply_markup=ReplyKeyboardRemove()
     )
-    return ConversationHandler.END
+    return send_type_question(update, context)
 
 
 def cancel(update: Update, context: CallbackContext) -> int:
@@ -81,7 +150,9 @@ def get_choosing_handler():
         entry_points=[CommandHandler("start", start_handler)],
         states={
             StateEnum.START: [MessageHandler(Filters.text, start_handler)],
-            StateEnum.STORAGE: [MessageHandler(Filters.text, storage)],
+            StateEnum.STORAGE: [MessageHandler(Filters.text, get_storage)],
+            StateEnum.TYPE: [MessageHandler(Filters.text, get_type)],
+            StateEnum.DIMENSION: [MessageHandler(Filters.text, get_dimension)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
