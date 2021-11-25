@@ -13,6 +13,7 @@ class StateEnum(Enum):
     STORAGE = auto()
     TYPE = auto()
     DIMENSION = auto()
+    PERIOD = auto()
 
 
 def get_storages() -> List[str]:
@@ -43,6 +44,37 @@ def get_dimensions() -> List[str]:
     return dimensions
 
 
+def get_periods() -> List[str]:
+    """Give periods for Other"""
+    periods = [f"{i} мес." for i in range(1, 13)]
+    return periods
+
+
+def send_period_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about period for Other things"""
+    periods = get_periods()
+    reply_keyboard = [periods]
+    update.message.reply_text(
+        "Выберите период хранения",
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder="Период хранения",
+            resize_keyboard=True,
+        )
+    )
+    return StateEnum.PERIOD
+
+
+def get_period(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle period for Other things"""
+    period = update.message.text
+    if period not in get_periods():
+        update.message.reply_text("Простите столько мы не сможем хранить")
+        return send_period_question(update, context)
+    return ConversationHandler.END
+
+
 def send_dimensions_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about dimensions for Other things"""
     dimensions = get_dimensions()
@@ -62,10 +94,10 @@ def send_dimensions_question(update: Update, context: CallbackContext) -> StateE
 def get_dimension(update: Update, context: CallbackContext) -> StateEnum:
     """Handle dimension of a box"""
     dimension = update.message.text
-    if not dimension.isnumeric():
+    if dimension not in get_dimensions():
         update.message.reply_text("Простите мы сдаем только целочисленную площадь")
         return send_dimensions_question(update, context)
-    return ConversationHandler.END
+    return send_period_question(update, context)
 
 
 def send_type_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -153,6 +185,7 @@ def get_choosing_handler():
             StateEnum.STORAGE: [MessageHandler(Filters.text, get_storage)],
             StateEnum.TYPE: [MessageHandler(Filters.text, get_type)],
             StateEnum.DIMENSION: [MessageHandler(Filters.text, get_dimension)],
+            StateEnum.PERIOD: [MessageHandler(Filters.text, get_period)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
