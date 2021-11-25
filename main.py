@@ -11,7 +11,8 @@ from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
 
 # Enabling logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger()
 
@@ -38,11 +39,11 @@ elif mode == "prod":
     def run(updater):
         PORT = int(os.environ.get("PORT", "8443"))
         HEROKU_APP_NAME = os.environ.get("HEROKU_APP_NAME")
-        # Code from https://github.com/python-telegram-bot/python-telegram-bot/wiki/Webhooks#heroku
         updater.start_webhook(listen="0.0.0.0",
                               port=PORT,
                               url_path=TELEGRAM_TOKEN,
-                              webhook_url=f'https://{HEROKU_APP_NAME}.herokuapp.com/{TELEGRAM_TOKEN}')
+                              webhook_url=f'https://{HEROKU_APP_NAME}'
+                                          f'.herokuapp.com/{TELEGRAM_TOKEN}')
         updater.idle()
 
 else:
@@ -53,7 +54,7 @@ else:
 def keyboard_row_divider(full_list, row_width=2):
     """Divide list into rows for keyboard"""
     for i in range(0, len(full_list), row_width):
-        yield full_list[i : i + row_width]
+        yield full_list[i: i + row_width]
 
 
 def start_handler(update: Update, context: CallbackContext):
@@ -101,7 +102,7 @@ def city(update: Update, context: CallbackContext):
 
 
 def storage(update: Update, context: CallbackContext):
-    """Handle storage adress"""
+    """Handle storage address"""
     update.message.reply_text(
         f"Вы выбрали хранилище по адресу: {update.message.text}",
         reply_markup=ReplyKeyboardRemove()
@@ -113,7 +114,8 @@ def cancel(update: Update, context: CallbackContext) -> int:
     """Cancels and ends the conversation."""
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
-    update.message.reply_text("Всего доброго!", reply_markup=ReplyKeyboardRemove())
+    update.message.reply_text("Всего доброго!",
+                              reply_markup=ReplyKeyboardRemove())
 
     return ConversationHandler.END
 
@@ -126,7 +128,10 @@ if __name__ == "__main__":
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start_handler)],
         states={
-            StateEnum.CITY: [MessageHandler(Filters.regex("^(Москва)$"), city)],
+            StateEnum.CITY: [
+                MessageHandler(
+                    Filters.regex("^(Москва)$"),
+                    city)],
             StateEnum.STORAGE: [MessageHandler(Filters.text, storage)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
