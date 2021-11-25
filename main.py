@@ -1,9 +1,7 @@
 import os
 import sys
 
-from telegram import ReplyKeyboardRemove, Update
-from telegram.ext import (CallbackContext, ConversationHandler,
-                          Updater)
+from telegram.ext import Updater
 
 from storage_choosing import get_choosing_handler
 from telegram_handlers import get_handler_person
@@ -31,16 +29,6 @@ elif mode == "prod":
 else:
     logger.error("No MODE specified!")
     sys.exit(1)
-
-
-def cancel(update: Update, context: CallbackContext) -> int:
-    """Cancel and end the conversation."""
-    user = update.message.from_user
-    logger.info("User %s canceled the conversation.", user.first_name)
-    update.message.reply_text("Всего доброго!",
-                              reply_markup=ReplyKeyboardRemove())
-
-    return ConversationHandler.END
 
 
 if __name__ == "__main__":

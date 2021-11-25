@@ -41,7 +41,6 @@ def city(update: Update, context: CallbackContext):
     city_name = update.message.text
 
     reply_keyboard = list(keyboard_row_divider(storages))
-
     update.message.reply_text(
         f"Выберете адрес хранилища в городе {city_name}:",
         reply_markup=ReplyKeyboardMarkup(
@@ -51,7 +50,7 @@ def city(update: Update, context: CallbackContext):
             resize_keyboard=True,
         ),
     )
-    cursor.close()
+    # cursor.close()
     return StateEnum.STORAGE
 
 
@@ -61,6 +60,16 @@ def storage(update: Update, context: CallbackContext):
         f"Вы выбрали хранилище по адресу: {update.message.text}",
         reply_markup=ReplyKeyboardRemove()
     )
+    return ConversationHandler.END
+
+
+def cancel(update: Update, context: CallbackContext) -> int:
+    """Cancel and end the conversation."""
+    user = update.message.from_user
+    logger.info("User %s canceled the conversation.", user.first_name)
+    update.message.reply_text("Всего доброго!",
+                              reply_markup=ReplyKeyboardRemove())
+
     return ConversationHandler.END
 
 
