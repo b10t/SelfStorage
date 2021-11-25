@@ -1,34 +1,13 @@
-import logging
 import os
 import sys
-from enum import Enum, auto
 
-import psycopg2
-from dotenv import load_dotenv
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
-                          Filters, MessageHandler, Updater)
+from telegram import ReplyKeyboardRemove, Update
+from telegram.ext import (CallbackContext, ConversationHandler,
+                          Updater)
 
+from storage_choosing import get_choosing_handler
 from telegram_handlers import get_handler_person
-
-
-# Enabling logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger()
-
-# Getting mode, so we could define run function for local and Heroku setup
-load_dotenv()
-mode = os.getenv("MODE", "dev")
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-
-class StateEnum(Enum):
-    CITY = auto()
-    STORAGE = auto()
+from load import logger, mode, TELEGRAM_TOKEN
 
 
 if mode == "dev":
@@ -54,67 +33,8 @@ else:
     sys.exit(1)
 
 
-def keyboard_row_divider(full_list, row_width=2):
-    """Divide list into rows for keyboard"""
-    for i in range(0, len(full_list), row_width):
-        yield full_list[i: i + row_width]
-
-
-def start_handler(update: Update, context: CallbackContext):
-    """Start conversation"""
-    logger.info(f'User {update.effective_user["id"]} started bot')
-    reply_keyboard = [["Москва"]]
-    update.message.reply_text(
-        "Привет! Я помогу тебе подобрать, забронировать и "
-        "арендовать пространство для твоих вещей\nВыберите, "
-        "пожалуйста, город:",
-        reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard,
-            one_time_keyboard=True,
-            input_field_placeholder="Ваш город?",
-            resize_keyboard=True,
-        ),
-    )
-    return StateEnum.CITY
-
-
-def city(update: Update, context: CallbackContext):
-    """Handle city name"""
-    connection = psycopg2.connect(DATABASE_URL)
-    cursor = connection.cursor()
-    cursor.execute("SELECT Address FROM storages")
-    storages_in_db = cursor.fetchall()
-    storages = []
-    for storage in storages_in_db:
-        storages.append(''.join(storage))
-    city_name = update.message.text
-
-    reply_keyboard = list(keyboard_row_divider(storages))
-
-    update.message.reply_text(
-        f"Выберете адрес хранилища в городе {city_name}:",
-        reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard,
-            one_time_keyboard=True,
-            input_field_placeholder="Адрес хранилища",
-            resize_keyboard=True,
-        ),
-    )
-    cursor.close()
-    return StateEnum.STORAGE
-
-
-def storage(update: Update, context: CallbackContext):
-    """Handle storage address"""
-    update.message.reply_text(
-        f"Вы выбрали хранилище по адресу: {update.message.text}",
-        reply_markup=ReplyKeyboardRemove()
-    )
-    return ConversationHandler.END
-
-
 def cancel(update: Update, context: CallbackContext) -> int:
-    """Cancels and ends the conversation."""
+    """Cancel and end the conversation."""
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
     update.message.reply_text("Всего доброго!",
@@ -128,18 +48,9 @@ if __name__ == "__main__":
     updater = Updater(token=TELEGRAM_TOKEN)
 
     dispatcher = updater.dispatcher
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start_handler)],
-        states={
-            StateEnum.CITY: [
-                MessageHandler(
-                    Filters.regex("^(Москва)$"),
-                    city)],
-            StateEnum.STORAGE: [MessageHandler(Filters.text, storage)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-    dispatcher.add_handler(conv_handler)
+
+    # choosing_handler
+    dispatcher.add_handler(get_choosing_handler())
 
     # person_data
     dispatcher.add_handler(get_handler_person())
