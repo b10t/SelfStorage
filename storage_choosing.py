@@ -1,6 +1,6 @@
 from typing import List
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, ParseMode
 from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
                           Filters, MessageHandler, Updater)
 from enum import Enum, auto
@@ -25,7 +25,12 @@ def get_storages() -> List[str]:
     # storages = []
     # for storage in storages_in_db:
     #     storages.append(''.join(storage))
-    storages = ['test1', 'test2', 'test3', 'test4']
+    storages = [
+        'Новый Арбат ул., 38',
+        'Гагаринский пер., 85',
+        'Климентовский пер., 79',
+        'Таганская ул., 71'
+    ]
     # cursor.close()
     return storages
 
@@ -52,10 +57,40 @@ def get_dimensions() -> List[str]:
     return dimensions
 
 
+def clear_dimension(full_name: str) -> int:
+    """Clear dimension phrase"""
+    return int(full_name.split(' ')[0])
+
+
 def get_periods() -> List[str]:
     """Give periods for Other"""
     periods = [f"{i} мес." for i in range(1, 13)]
     return periods
+
+
+def clear_period(full_name: str) -> int:
+    """Clear period phrase"""
+    return int(full_name.split(' ')[0])
+
+
+def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
+    """Send calculation of full price"""
+    storage = context.user_data['storage'].replace('.', '\.')
+    things_type = context.user_data['type']
+    dimension = context.user_data['dimension']
+    other_period = context.user_data['other_period']
+    full_cost = get_dimension_cost(dimension) * other_period
+    update.message.reply_text(
+        f'Мы подготовим для вас пространство:\n'
+        f'По адресу: *{storage}*\n'
+        f'Для хранения: *{things_type}*\n'
+        f'Размером в *{dimension}* кв\.м\.\n'
+        f'На период в *{other_period}* мес\.\n'
+        f'Общая стоимость составляет: *{full_cost}* рублей',
+        reply_markup=ReplyKeyboardRemove(),
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
+    return ConversationHandler.END
 
 
 def send_period_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -80,7 +115,9 @@ def get_period(update: Update, context: CallbackContext) -> StateEnum:
     if period not in get_periods():
         update.message.reply_text("Простите столько мы не сможем хранить")
         return send_period_question(update, context)
-    return ConversationHandler.END
+
+    context.user_data['other_period'] = clear_period(period)
+    return send_full_price(update, context)
 
 
 def send_dimensions_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -105,6 +142,8 @@ def get_dimension(update: Update, context: CallbackContext) -> StateEnum:
     if dimension not in get_dimensions():
         update.message.reply_text("Простите мы сдаем только целочисленную площадь")
         return send_dimensions_question(update, context)
+
+    context.user_data['dimension'] = clear_dimension(dimension)
     return send_period_question(update, context)
 
 
@@ -131,6 +170,7 @@ def get_type(update: Update, context: CallbackContext) -> StateEnum:
         update.message.reply_text("Простите, мы пока не храним такое :(")
         return send_type_question(update, context)
     if type_name == "Другое":
+        context.user_data['type'] = type_name
         return send_dimensions_question(update, context)
     return ConversationHandler.END
 
@@ -172,6 +212,7 @@ def get_storage(update: Update, context: CallbackContext) -> StateEnum:
         f"Вы выбрали хранилище по адресу: {update.message.text}",
         reply_markup=ReplyKeyboardRemove()
     )
+    context.user_data['storage'] = storage_name
     return send_type_question(update, context)
 
 
