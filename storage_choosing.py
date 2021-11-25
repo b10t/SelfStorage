@@ -36,11 +36,19 @@ def get_types() -> List[str]:
     return types
 
 
+def get_dimension_cost(area: int) -> int:
+    """Calculate cost of area"""
+    first_meter = 599
+    add_meter = 150
+    return first_meter + add_meter * (area - 1)
+
+
 def get_dimensions() -> List[str]:
     """Give dimensions for other things with cost"""
     dimensions = []
     for i in range(1, 11):
-        dimensions.append(str(i))
+        cost = get_dimension_cost(i)
+        dimensions.append(f"{i} кв.м.({cost} р.)")
     return dimensions
 
 
@@ -53,7 +61,7 @@ def get_periods() -> List[str]:
 def send_period_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about period for Other things"""
     periods = get_periods()
-    reply_keyboard = [periods]
+    reply_keyboard = keyboard_row_divider(periods, 4)
     update.message.reply_text(
         "Выберите период хранения",
         reply_markup=ReplyKeyboardMarkup(
@@ -78,7 +86,7 @@ def get_period(update: Update, context: CallbackContext) -> StateEnum:
 def send_dimensions_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about dimensions for Other things"""
     dimensions = get_dimensions()
-    reply_keyboard = [dimensions]
+    reply_keyboard = keyboard_row_divider(dimensions, 3)
     update.message.reply_text(
         "Выберите габаритность ячейки",
         reply_markup=ReplyKeyboardMarkup(
