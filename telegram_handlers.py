@@ -47,3 +47,18 @@ def get_telephone(update: Update, context: CallbackContext):
                                 selective=True)
     )
     return ConversationHandler.END
+
+
+def get_handler_person():
+    return ConversationHandler(
+            entry_points=[CommandHandler("person_data", start_person_data)],
+            states={
+                "user_name": [MessageHandler(Filters.text, get_user_name)],
+                "user_middle_name": [MessageHandler(Filters.text, get_middle_name)],
+                "user_telephone": [MessageHandler(Filters.text, get_telephone)],
+                # "evaluation": [MessageHandler(Filters.regex('1|2|3|4|5'), anketa_get_evaluation)],
+                # "comment": [MessageHandler(Filters.regex('Пропустить'), anketa_exit_comment),
+                #             MessageHandler(Filters.text, anketa_comment)],
+            },
+            fallbacks=[CommandHandler("cancel", start_person_data)]
+        )
