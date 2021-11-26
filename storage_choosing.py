@@ -16,6 +16,7 @@ class StateEnum(Enum):
     PERIOD = auto()
     SEASONAL = auto()
     COUNT = auto()
+    PERIOD_TYPE = auto()
 
 
 def get_storages() -> List[str]:
@@ -101,6 +102,22 @@ def get_seasonals() -> List[str]:
     return seasonals
 
 
+def get_seasonals_week() -> List[str]:
+    """Give seasonals for choice week or month long"""
+    seasonals = [
+        'Лыжи',
+        'Сноуборд',
+        'Велосипед',
+    ]
+    return seasonals
+
+
+def get_period_types() -> List[str]:
+    """Give period types for seasonal things"""
+    period_types = ['Месяцы', 'Недели']
+    return period_types
+
+
 def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     """Send calculation of full price"""
     storage = context.user_data['storage'].replace('.', '\.')
@@ -121,6 +138,33 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     return ConversationHandler.END
 
 
+def send_period_type_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about period type of seasonal things"""
+    period_types = get_period_types()
+    reply_keyboard = [period_types]
+    update.message.reply_text(
+        "Напишите единицу измерения срока хранения вещей",
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder="Месяцы или недели",
+            resize_keyboard=True,
+        )
+    )
+    return StateEnum.PERIOD_TYPE
+
+
+def get_period_type(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle period type for seasonal things"""
+    period_type = update.message.text
+    if period_type not in get_period_types():
+        update.message.reply_text("Простите мы не храним столько")
+        return send_period_type_question(update, context)
+
+    context.user_data['period_type'] = period_type
+    return ConversationHandler.END
+
+
 def send_count_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about count of seasonal things"""
     update.message.reply_text(
@@ -138,7 +182,11 @@ def get_count(update: Update, context: CallbackContext) -> StateEnum:
         return send_count_question(update, context)
 
     context.user_data['count'] = count
-    return ConversationHandler.END
+    if context.user_data['seasonal'] in get_seasonals_week():
+        return send_period_type_question(update, context)
+    else:
+        context.user_data['period_type'] = "Месяцы"
+        return ConversationHandler.END
 
 
 def send_seasonal_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -312,6 +360,7 @@ def get_choosing_handler():
             StateEnum.PERIOD: [MessageHandler(Filters.text, get_period)],
             StateEnum.SEASONAL: [MessageHandler(Filters.text, get_seasonal)],
             StateEnum.COUNT: [MessageHandler(Filters.text, get_count)],
+            StateEnum.PERIOD_TYPE: [MessageHandler(Filters.text, get_period_type)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
