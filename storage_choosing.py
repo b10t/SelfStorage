@@ -18,33 +18,42 @@ class StateEnum(Enum):
 
 def get_storages() -> List[str]:
     """Give list of storages from DB"""
-    # connection = psycopg2.connect(DATABASE_URL)
-    # cursor = connection.cursor()
-    # cursor.execute("SELECT Address FROM storages")
-    # storages_in_db = cursor.fetchall()
-    # storages = []
-    # for storage in storages_in_db:
-    #     storages.append(''.join(storage))
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute("SELECT Address FROM storages")
+    storages = [x[0] for x in cursor.fetchall()]
+    """
     storages = [
         'Новый Арбат ул., 38',
         'Гагаринский пер., 85',
         'Климентовский пер., 79',
         'Таганская ул., 71'
-    ]
-    # cursor.close()
+    ]"""
+    cursor.close()
     return storages
 
 
 def get_types() -> List[str]:
     """Give types of possible things"""
-    types = ['Сезонные вещи', 'Другое']
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute("SELECT Name FROM typecell WHERE id=1 or id=2")
+    types = [x[0] for x in cursor.fetchall()]
+
+    #types = ['Сезонные вещи', 'Другое']
+    cursor.close()
     return types
 
 
 def get_dimension_cost(area: int) -> int:
     """Calculate cost of area"""
-    first_meter = 599
-    add_meter = 150
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute("SELECT cost1 FROM typecell WHERE id=2")
+    first_meter = float(cursor.fetchone()[0])
+    cursor.execute("SELECT cost2 FROM typecell WHERE id=2")
+    add_meter = float(cursor.fetchone()[0])
+    cursor.close()
     return first_meter + add_meter * (area - 1)
 
 
@@ -64,7 +73,14 @@ def clear_dimension(full_name: str) -> int:
 
 def get_periods() -> List[str]:
     """Give periods for Other"""
-    periods = [f"{i} мес." for i in range(1, 13)]
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute("SELECT periodmin FROM typecell WHERE id=2")
+    min_period = int(cursor.fetchone()[0]) // 4
+    cursor.execute("SELECT periodmax FROM typecell WHERE id=2")
+    max_period = int(cursor.fetchone()[0]) // 4
+    cursor.close()
+    periods = [f"{i} мес." for i in range(min_period, max_period+1)]
     return periods
 
 
@@ -238,3 +254,5 @@ def get_choosing_handler():
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
+
+
