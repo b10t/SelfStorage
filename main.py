@@ -41,6 +41,6 @@ if __name__ == "__main__":
     dispatcher.add_handler(get_choosing_handler())
 
     # person_data
-    dispatcher.add_handler(get_handler_person())
+    dispatcher.add_handler(get_handler_person(dispatcher))
 
     run(updater)
