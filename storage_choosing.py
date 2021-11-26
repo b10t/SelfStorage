@@ -17,6 +17,7 @@ class StateEnum(Enum):
     SEASONAL = auto()
     COUNT = auto()
     PERIOD_TYPE = auto()
+    PERIOD_COUNT = auto()
 
 
 def get_storages() -> List[str]:
@@ -118,6 +119,20 @@ def get_period_types() -> List[str]:
     return period_types
 
 
+def get_period_counts(period_type: str) -> List[str]:
+    """Give period counts for seasonal things"""
+    if period_type == 'Недели':
+        period_counts = [f'{i} нед.' for i in range(1, 4)]
+    else:
+        period_counts = [f'{i} мес.' for i in range(1, 7)]
+    return period_counts
+
+
+def clear_period_count(full_name: str) -> int:
+    """Clear period count phrase"""
+    return int(full_name.split(' ')[0])
+
+
 def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     """Send calculation of full price"""
     storage = context.user_data['storage'].replace('.', '\.')
@@ -135,6 +150,35 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
         reply_markup=ReplyKeyboardRemove(),
         parse_mode=ParseMode.MARKDOWN_V2,
     )
+    return ConversationHandler.END
+
+
+def send_period_count_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about number of periods for seasonal things"""
+    period_type = context.user_data['period_type']
+    period_counts = get_period_counts(period_type)
+    reply_keyboard = keyboard_row_divider(period_counts, 3)
+    update.message.reply_text(
+        'Выберите срок хранения Ваших вещей',
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder='Срок хранения',
+            resize_keyboard=True,
+        )
+    )
+    return StateEnum.PERIOD_COUNT
+
+
+def get_period_count(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle number of periods for seasonal items"""
+    period_count = update.message.text
+    period_type = context.user_data['period_type']
+    if period_count not in get_period_counts(period_type):
+        update.message.reply_text("Простите мы не храним столько")
+        return send_period_count_question(update, context)
+
+    context.user_data['period_count'] = clear_period_count(period_count)
     return ConversationHandler.END
 
 
@@ -162,7 +206,7 @@ def get_period_type(update: Update, context: CallbackContext) -> StateEnum:
         return send_period_type_question(update, context)
 
     context.user_data['period_type'] = period_type
-    return ConversationHandler.END
+    return send_period_count_question(update, context)
 
 
 def send_count_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -186,7 +230,7 @@ def get_count(update: Update, context: CallbackContext) -> StateEnum:
         return send_period_type_question(update, context)
     else:
         context.user_data['period_type'] = "Месяцы"
-        return ConversationHandler.END
+        return send_period_count_question(update, context)
 
 
 def send_seasonal_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -361,6 +405,7 @@ def get_choosing_handler():
             StateEnum.SEASONAL: [MessageHandler(Filters.text, get_seasonal)],
             StateEnum.COUNT: [MessageHandler(Filters.text, get_count)],
             StateEnum.PERIOD_TYPE: [MessageHandler(Filters.text, get_period_type)],
+            StateEnum.PERIOD_COUNT: [MessageHandler(Filters.text, get_period_count)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
