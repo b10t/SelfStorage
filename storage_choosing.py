@@ -22,29 +22,29 @@ class StateEnum(Enum):
 
 def get_storages() -> List[str]:
     """Give list of storages from DB"""
-    # connection = psycopg2.connect(DATABASE_URL)
-    # cursor = connection.cursor()
-    # cursor.execute("SELECT Address FROM storages")
-    # storages = [x[0] for x in cursor.fetchall()]
-    # cursor.close()
-    storages = [
-        'Новый Арбат ул., 38',
-        'Гагаринский пер., 85',
-        'Климентовский пер., 79',
-        'Таганская ул., 71'
-    ]
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute("SELECT Address FROM storages")
+    storages = [x[0] for x in cursor.fetchall()]
+    cursor.close()
+    # storages = [
+    #     'Новый Арбат ул., 38',
+    #     'Гагаринский пер., 85',
+    #     'Климентовский пер., 79',
+    #     'Таганская ул., 71'
+    # ]
     return storages
 
 
 def get_types() -> List[str]:
     """Give types of possible things"""
-    # connection = psycopg2.connect(DATABASE_URL)
-    # cursor = connection.cursor()
-    # cursor.execute("SELECT Name FROM typecell WHERE id=1 or id=2")
-    # types = [x[0] for x in cursor.fetchall()]
-    #
-    # cursor.close()
-    types = ['Сезонные вещи', 'Другое']
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute("SELECT Name FROM typecell WHERE id=1 or id=2")
+    types = [x[0] for x in cursor.fetchall()]
+
+    cursor.close()
+    # types = ['Сезонные вещи', 'Другое']
     return types
 
 
