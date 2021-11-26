@@ -230,7 +230,7 @@ def get_telephone(update: Update, context: CallbackContext):
 
 def contact_callback(update: Update, context: CallbackContext):
     contact = update.effective_message.contact
-    context.user_data['telephone'] = contact.phone_number
+    update.message.text = contact.phone_number
 
     return show_persion_data(update, context)
 
