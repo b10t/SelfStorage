@@ -15,6 +15,7 @@ class StateEnum(Enum):
     DIMENSION = auto()
     PERIOD = auto()
     SEASONAL = auto()
+    COUNT = auto()
 
 
 def get_storages() -> List[str]:
@@ -120,6 +121,26 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     return ConversationHandler.END
 
 
+def send_count_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about count of seasonal things"""
+    update.message.reply_text(
+        f"Введите количество вещей вида {context.user_data['seasonal']}",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    return StateEnum.COUNT
+
+
+def get_count(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle count of seasonal things"""
+    count = update.message.text
+    if not count.isnumeric():
+        update.message.reply_text("Простите, мы храним только целое количество вещей")
+        return send_count_question(update, context)
+
+    context.user_data['count'] = count
+    return ConversationHandler.END
+
+
 def send_seasonal_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about seasonal type of things"""
     seasonals = get_seasonals()
@@ -144,7 +165,7 @@ def get_seasonal(update: Update, context: CallbackContext) -> StateEnum:
         return send_seasonal_question(update, context)
 
     context.user_data['seasonal'] = seasonal
-    return ConversationHandler.END
+    return send_count_question(update, context)
 
 
 def send_period_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -290,6 +311,7 @@ def get_choosing_handler():
             StateEnum.DIMENSION: [MessageHandler(Filters.text, get_dimension)],
             StateEnum.PERIOD: [MessageHandler(Filters.text, get_period)],
             StateEnum.SEASONAL: [MessageHandler(Filters.text, get_seasonal)],
+            StateEnum.COUNT: [MessageHandler(Filters.text, get_count)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
