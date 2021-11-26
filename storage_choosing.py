@@ -22,13 +22,6 @@ def get_storages() -> List[str]:
     cursor = connection.cursor()
     cursor.execute("SELECT Address FROM storages")
     storages = [x[0] for x in cursor.fetchall()]
-    """
-    storages = [
-        'Новый Арбат ул., 38',
-        'Гагаринский пер., 85',
-        'Климентовский пер., 79',
-        'Таганская ул., 71'
-    ]"""
     cursor.close()
     return storages
 
@@ -40,7 +33,6 @@ def get_types() -> List[str]:
     cursor.execute("SELECT Name FROM typecell WHERE id=1 or id=2")
     types = [x[0] for x in cursor.fetchall()]
 
-    #types = ['Сезонные вещи', 'Другое']
     cursor.close()
     return types
 
@@ -95,7 +87,7 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     things_type = context.user_data['type']
     dimension = context.user_data['dimension']
     other_period = context.user_data['other_period']
-    full_cost = get_dimension_cost(dimension) * other_period
+    full_cost = str(get_dimension_cost(dimension) * other_period).replace('.', '\.')
     update.message.reply_text(
         f'Мы подготовим для вас пространство:\n'
         f'По адресу: *{storage}*\n'
