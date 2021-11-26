@@ -14,6 +14,10 @@ class StateEnum(Enum):
     TYPE = auto()
     DIMENSION = auto()
     PERIOD = auto()
+    SEASONAL = auto()
+    COUNT = auto()
+    PERIOD_TYPE = auto()
+    PERIOD_COUNT = auto()
 
 
 def get_storages() -> List[str]:
@@ -23,6 +27,12 @@ def get_storages() -> List[str]:
     cursor.execute("SELECT Address FROM storages")
     storages = [x[0] for x in cursor.fetchall()]
     cursor.close()
+    # storages = [
+    #     'Новый Арбат ул., 38',
+    #     'Гагаринский пер., 85',
+    #     'Климентовский пер., 79',
+    #     'Таганская ул., 71'
+    # ]
     return storages
 
 
@@ -34,6 +44,7 @@ def get_types() -> List[str]:
     types = [x[0] for x in cursor.fetchall()]
 
     cursor.close()
+    # types = ['Сезонные вещи', 'Другое']
     return types
 
 
@@ -81,24 +92,219 @@ def clear_period(full_name: str) -> int:
     return int(full_name.split(' ')[0])
 
 
+def get_seasonal_cost(seasonal: str) -> [int, int]:
+    """Give cost for seasonal for a week and month in one tuple"""
+    if seasonal == 'Лыжи':
+        return 100, 300
+    if seasonal == 'Сноуборд':
+        return 100, 300
+    if seasonal == 'Колёса':
+        return None, 50
+    if seasonal == 'Велосипед':
+        return 150, 400
+
+
+def get_seasonals() -> List[str]:
+    """Give seasonal types of things"""
+    seasonals = [
+        'Лыжи',
+        'Сноуборд',
+        'Велосипед',
+        'Колёса'
+    ]
+    return seasonals
+
+
+def get_seasonals_week() -> List[str]:
+    """Give seasonals for choice week or month long"""
+    seasonals = [
+        'Лыжи',
+        'Сноуборд',
+        'Велосипед',
+    ]
+    return seasonals
+
+
+def get_period_types() -> List[str]:
+    """Give period types for seasonal things"""
+    period_types = ['Месяцы', 'Недели']
+    return period_types
+
+
+def get_period_counts(period_type: str) -> List[str]:
+    """Give period counts for seasonal things"""
+    if period_type == 'Недели':
+        period_counts = [f'{i} нед.' for i in range(1, 4)]
+    else:
+        period_counts = [f'{i} мес.' for i in range(1, 7)]
+    return period_counts
+
+
+def clear_period_count(full_name: str) -> int:
+    """Clear period count phrase"""
+    return int(full_name.split(' ')[0])
+
+
 def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     """Send calculation of full price"""
     storage = context.user_data['storage'].replace('.', '\.')
     things_type = context.user_data['type']
-    dimension = context.user_data['dimension']
-    other_period = context.user_data['other_period']
-    full_cost = str(get_dimension_cost(dimension) * other_period).replace('.', '\.')
+    result_answer = f'Мы подготовим для Вас пространство:\n' \
+                    f'По адресу: *{storage}*\n'
+    if things_type == 'Другое':
+        dimension = context.user_data['dimension']
+        other_period = context.user_data['other_period']
+        full_cost = str(get_dimension_cost(dimension) * other_period).replace('.', '\.')
+        result_answer += f'Для хранения: *{things_type}*\n' \
+                         f'Размером в *{dimension}* кв\.м\.\n' \
+                         f'На период в *{other_period}* мес\.\n' \
+                         f'Общая стоимость составляет: *{full_cost}* рублей'
+
+    if things_type == 'Сезонные вещи':
+        seasonal = context.user_data['seasonal']
+        count = int(context.user_data['count'])
+        cost = get_seasonal_cost(seasonal)
+        period_type = context.user_data['period_type']
+        period_count = int(context.user_data['period_count'])
+        if period_type == 'Недели':
+            period_name = 'нед\.'
+            full_cost = cost[0] * period_count * count
+        else:
+            period_name = 'мес\.'
+            full_cost = cost[1] * period_count * count
+        full_cost = str(full_cost).replace('.', '\.')
+        result_answer += f'Для хранения вещей вида *{seasonal}*\n' \
+                         f'В количестве *{count}* штук\n' \
+                         f'На период *{period_count} {period_name}*\n' \
+                         f'Общая стоимость составляет: *{full_cost}* рублей'
+
     update.message.reply_text(
-        f'Мы подготовим для вас пространство:\n'
-        f'По адресу: *{storage}*\n'
-        f'Для хранения: *{things_type}*\n'
-        f'Размером в *{dimension}* кв\.м\.\n'
-        f'На период в *{other_period}* мес\.\n'
-        f'Общая стоимость составляет: *{full_cost}* рублей',
+        result_answer,
         reply_markup=ReplyKeyboardRemove(),
         parse_mode=ParseMode.MARKDOWN_V2,
     )
     return ConversationHandler.END
+
+
+def send_period_count_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about number of periods for seasonal things"""
+    period_type = context.user_data['period_type']
+    period_counts = get_period_counts(period_type)
+    reply_keyboard = keyboard_row_divider(period_counts, 3)
+    update.message.reply_text(
+        'Выберите срок хранения Ваших вещей',
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder='Срок хранения',
+            resize_keyboard=True,
+        )
+    )
+    return StateEnum.PERIOD_COUNT
+
+
+def get_period_count(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle number of periods for seasonal items"""
+    period_count = update.message.text
+    period_type = context.user_data['period_type']
+    if period_count not in get_period_counts(period_type):
+        update.message.reply_text("Простите мы не храним столько")
+        return send_period_count_question(update, context)
+
+    context.user_data['period_count'] = clear_period_count(period_count)
+    return send_full_price(update, context)
+
+
+def send_period_type_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about period type of seasonal things"""
+    period_types = get_period_types()
+    reply_keyboard = [period_types]
+    update.message.reply_text(
+        "Напишите единицу измерения срока хранения вещей",
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder="Месяцы или недели",
+            resize_keyboard=True,
+        )
+    )
+    return StateEnum.PERIOD_TYPE
+
+
+def get_period_type(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle period type for seasonal things"""
+    period_type = update.message.text
+    if period_type not in get_period_types():
+        update.message.reply_text("Простите мы не храним столько")
+        return send_period_type_question(update, context)
+
+    context.user_data['period_type'] = period_type
+    return send_period_count_question(update, context)
+
+
+def send_seasonal_cost(update: Update, context: CallbackContext) -> StateEnum:
+    """Send week/month cost of seasonal items"""
+    seasonal = context.user_data['seasonal']
+    count = int(context.user_data['count'])
+    cost = get_seasonal_cost(seasonal)
+    if seasonal in get_seasonals_week():
+        update.message.reply_text(f'Стоимость хранения вещей '
+                                  f'вида "{seasonal}" в количестве {count} шт. \n'
+                                  f'составляет {cost[0]*count} р/неделя или {cost[1]*count} р/мес')
+        return send_period_type_question(update, context)
+    else:
+        update.message.reply_text(f'Стоимость хранения вещей '
+                                  f'вида "{seasonal}" в количестве {count} шт. \n'
+                                  f'составляет {cost[1]*count} р/мес')
+        context.user_data['period_type'] = "Месяцы"
+        return send_period_count_question(update, context)
+
+
+def send_count_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about count of seasonal things"""
+    update.message.reply_text(
+        f"Введите количество вещей вида {context.user_data['seasonal']}",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    return StateEnum.COUNT
+
+
+def get_count(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle count of seasonal things"""
+    count = update.message.text
+    if not count.isnumeric():
+        update.message.reply_text("Простите, мы храним только целое количество вещей")
+        return send_count_question(update, context)
+
+    context.user_data['count'] = count
+    return send_seasonal_cost(update, context)
+
+
+def send_seasonal_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about seasonal type of things"""
+    seasonals = get_seasonals()
+    reply_keyboard = keyboard_row_divider(seasonals, 2)
+    update.message.reply_text(
+        "Выберите вид вещей для хранения",
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder="Вид сезонных вещей",
+            resize_keyboard=True,
+        )
+    )
+    return StateEnum.SEASONAL
+
+
+def get_seasonal(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle type of seasonal things"""
+    seasonal = update.message.text
+    if seasonal not in get_seasonals():
+        update.message.reply_text("Простите, такой вид вещей мы пока не храним")
+        return send_seasonal_question(update, context)
+
+    context.user_data['seasonal'] = seasonal
+    return send_count_question(update, context)
 
 
 def send_period_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -180,6 +386,10 @@ def get_type(update: Update, context: CallbackContext) -> StateEnum:
     if type_name == "Другое":
         context.user_data['type'] = type_name
         return send_dimensions_question(update, context)
+    if type_name == "Сезонные вещи":
+        context.user_data['type'] = type_name
+        return send_seasonal_question(update, context)
+
     return ConversationHandler.END
 
 
@@ -216,10 +426,6 @@ def get_storage(update: Update, context: CallbackContext) -> StateEnum:
         update.message.reply_text("Простите, по данному адресу у нас пока нет складов (")
         return send_storage_question(update, context)
 
-    update.message.reply_text(
-        f"Вы выбрали хранилище по адресу: {update.message.text}",
-        reply_markup=ReplyKeyboardRemove()
-    )
     context.user_data['storage'] = storage_name
     return send_type_question(update, context)
 
@@ -243,6 +449,10 @@ def get_choosing_handler():
             StateEnum.TYPE: [MessageHandler(Filters.text, get_type)],
             StateEnum.DIMENSION: [MessageHandler(Filters.text, get_dimension)],
             StateEnum.PERIOD: [MessageHandler(Filters.text, get_period)],
+            StateEnum.SEASONAL: [MessageHandler(Filters.text, get_seasonal)],
+            StateEnum.COUNT: [MessageHandler(Filters.text, get_count)],
+            StateEnum.PERIOD_TYPE: [MessageHandler(Filters.text, get_period_type)],
+            StateEnum.PERIOD_COUNT: [MessageHandler(Filters.text, get_period_count)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
