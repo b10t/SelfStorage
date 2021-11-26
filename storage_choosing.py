@@ -14,26 +14,34 @@ class StateEnum(Enum):
     TYPE = auto()
     DIMENSION = auto()
     PERIOD = auto()
+    SEASONAL = auto()
 
 
 def get_storages() -> List[str]:
     """Give list of storages from DB"""
-    connection = psycopg2.connect(DATABASE_URL)
-    cursor = connection.cursor()
-    cursor.execute("SELECT Address FROM storages")
-    storages = [x[0] for x in cursor.fetchall()]
-    cursor.close()
+    # connection = psycopg2.connect(DATABASE_URL)
+    # cursor = connection.cursor()
+    # cursor.execute("SELECT Address FROM storages")
+    # storages = [x[0] for x in cursor.fetchall()]
+    # cursor.close()
+    storages = [
+        'Новый Арбат ул., 38',
+        'Гагаринский пер., 85',
+        'Климентовский пер., 79',
+        'Таганская ул., 71'
+    ]
     return storages
 
 
 def get_types() -> List[str]:
     """Give types of possible things"""
-    connection = psycopg2.connect(DATABASE_URL)
-    cursor = connection.cursor()
-    cursor.execute("SELECT Name FROM typecell WHERE id=1 or id=2")
-    types = [x[0] for x in cursor.fetchall()]
-
-    cursor.close()
+    # connection = psycopg2.connect(DATABASE_URL)
+    # cursor = connection.cursor()
+    # cursor.execute("SELECT Name FROM typecell WHERE id=1 or id=2")
+    # types = [x[0] for x in cursor.fetchall()]
+    #
+    # cursor.close()
+    types = ['Сезонные вещи', 'Другое']
     return types
 
 
@@ -81,6 +89,17 @@ def clear_period(full_name: str) -> int:
     return int(full_name.split(' ')[0])
 
 
+def get_seasonals() -> List[str]:
+    """Give seasonal types of things"""
+    seasonals = [
+        'Лыжи',
+        'Сноуборд',
+        'Велосипед',
+        'Колёса'
+    ]
+    return seasonals
+
+
 def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     """Send calculation of full price"""
     storage = context.user_data['storage'].replace('.', '\.')
@@ -98,6 +117,33 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
         reply_markup=ReplyKeyboardRemove(),
         parse_mode=ParseMode.MARKDOWN_V2,
     )
+    return ConversationHandler.END
+
+
+def send_seasonal_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about seasonal type of things"""
+    seasonals = get_seasonals()
+    reply_keyboard = keyboard_row_divider(seasonals, 2)
+    update.message.reply_text(
+        "Выберите вид вещей для хранения",
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder="Вид сезонных вещей",
+            resize_keyboard=True,
+        )
+    )
+    return StateEnum.SEASONAL
+
+
+def get_seasonal(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle type of seasonal things"""
+    seasonal = update.message.text
+    if seasonal not in get_seasonals():
+        update.message.reply_text("Простите, такой вид вещей мы пока не храним")
+        return send_seasonal_question(update, context)
+
+    context.user_data['seasonal'] = seasonal
     return ConversationHandler.END
 
 
@@ -180,6 +226,10 @@ def get_type(update: Update, context: CallbackContext) -> StateEnum:
     if type_name == "Другое":
         context.user_data['type'] = type_name
         return send_dimensions_question(update, context)
+    if type_name == "Сезонные вещи":
+        context.user_data['type'] = type_name
+        return send_seasonal_question(update, context)
+
     return ConversationHandler.END
 
 
@@ -216,10 +266,6 @@ def get_storage(update: Update, context: CallbackContext) -> StateEnum:
         update.message.reply_text("Простите, по данному адресу у нас пока нет складов (")
         return send_storage_question(update, context)
 
-    update.message.reply_text(
-        f"Вы выбрали хранилище по адресу: {update.message.text}",
-        reply_markup=ReplyKeyboardRemove()
-    )
     context.user_data['storage'] = storage_name
     return send_type_question(update, context)
 
@@ -243,6 +289,7 @@ def get_choosing_handler():
             StateEnum.TYPE: [MessageHandler(Filters.text, get_type)],
             StateEnum.DIMENSION: [MessageHandler(Filters.text, get_dimension)],
             StateEnum.PERIOD: [MessageHandler(Filters.text, get_period)],
+            StateEnum.SEASONAL: [MessageHandler(Filters.text, get_seasonal)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
