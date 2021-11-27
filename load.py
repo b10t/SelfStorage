@@ -23,3 +23,11 @@ def keyboard_row_divider(full_list, row_width=2):
     """Divide list into rows for keyboard"""
     for i in range(0, len(full_list), row_width):
         yield full_list[i: i + row_width]
+
+
+def escape_characters(text: str) -> str:
+    """Screen characters for Markdown V2"""
+    characters = ['.', '+']
+    for character in characters:
+        text = text.replace(character, f'\{character}')
+    return text
