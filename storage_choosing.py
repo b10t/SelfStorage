@@ -7,7 +7,7 @@ from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
 from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
                           Filters, MessageHandler, Updater, PrefixHandler)
 
-from load import DATABASE_URL, keyboard_row_divider, logger
+from load import DATABASE_URL, keyboard_row_divider, logger, escape_characters
 
 
 class StateEnum(Enum):
@@ -144,17 +144,18 @@ def clear_period_count(full_name: str) -> int:
 
 def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     """Send calculation of full price"""
-    storage = context.user_data['storage'].replace('.', '\.')
+    storage = context.user_data['storage']
     things_type = context.user_data['type']
     result_answer = f'Мы подготовим для Вас пространство:\nПо адресу: *{storage}*\n'
+
     if things_type == 'Другое':
         dimension = context.user_data['dimension']
         other_period = context.user_data['other_period']
-        full_cost = str(get_dimension_cost(dimension) * other_period).replace('.', '\.')
+        full_cost = str(get_dimension_cost(dimension) * other_period)
         result_answer += (
             f'Для хранения: *{things_type}*\n'
-            f'Размером в *{dimension}* кв\.м\.\n'
-            f'На период в *{other_period}* мес\.\n'
+            f'Размером в *{dimension}* кв.м.\n'
+            f'На период в *{other_period}* мес.\n'
             f'Общая стоимость составляет: *{full_cost}* рублей'
         )
 
@@ -165,12 +166,12 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
         period_type = context.user_data['period_type']
         period_count = int(context.user_data['period_count'])
         if period_type == 'Недели':
-            period_name = 'нед\.'
+            period_name = 'нед'
             full_cost = cost[0] * period_count * count
         else:
-            period_name = 'мес\.'
+            period_name = 'мес'
             full_cost = cost[1] * period_count * count
-        full_cost = str(full_cost).replace('.', '\.')
+        full_cost = str(full_cost)
         result_answer += (
             f'Для хранения вещей вида *{seasonal}*\n'
             f'В количестве *{count}* штук\n'
@@ -179,7 +180,7 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
         )
 
     update.message.reply_text(
-        result_answer,
+        escape_characters(result_answer),
         reply_markup=ReplyKeyboardRemove(),
         parse_mode=ParseMode.MARKDOWN_V2,
     )
@@ -208,7 +209,7 @@ def get_period_count(update: Update, context: CallbackContext) -> StateEnum:
     period_count = update.message.text
     period_type = context.user_data['period_type']
     if period_count not in get_period_counts(period_type):
-        update.message.reply_text('Простите мы не храним столько')
+        update.message.reply_text('Простите, мы не храним столько')
         return send_period_count_question(update, context)
 
     context.user_data['period_count'] = clear_period_count(period_count)
@@ -235,7 +236,7 @@ def get_period_type(update: Update, context: CallbackContext) -> StateEnum:
     """Handle period type for seasonal things"""
     period_type = update.message.text
     if period_type not in get_period_types():
-        update.message.reply_text('Простите мы не храним столько')
+        update.message.reply_text('Простите, мы не храним столько')
         return send_period_type_question(update, context)
 
     context.user_data['period_type'] = period_type
@@ -331,7 +332,7 @@ def get_period(update: Update, context: CallbackContext) -> StateEnum:
     """Handle period for Other things"""
     period = update.message.text
     if period not in get_periods():
-        update.message.reply_text('Простите столько мы не сможем хранить')
+        update.message.reply_text('Простите, столько мы не сможем хранить')
         return send_period_question(update, context)
 
     context.user_data['other_period'] = clear_period(period)
@@ -358,7 +359,7 @@ def get_dimension(update: Update, context: CallbackContext) -> StateEnum:
     """Handle dimension of a box"""
     dimension = update.message.text
     if dimension not in get_dimensions():
-        update.message.reply_text('Простите мы сдаем только целочисленную площадь')
+        update.message.reply_text('Простите, мы сдаем только целочисленную площадь')
         return send_dimensions_question(update, context)
 
     context.user_data['dimension'] = clear_dimension(dimension)
@@ -418,7 +419,7 @@ def start_handler(update: Update, context: CallbackContext) -> StateEnum:
     """Start conversation and send first question"""
     logger.info(f'User {update.effective_user["id"]} started bot')
     update.message.reply_text(
-        'Привет! Я помогу тебе подобрать, забронировать и '
+        'Привет! Я помогу Вам подобрать, забронировать и '
         'арендовать пространство для твоих вещей'
     )
     return send_storage_question(update, context)
