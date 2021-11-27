@@ -1,11 +1,12 @@
 from enum import Enum, auto
 from typing import List
+from datetime import date, timedelta
 
 import psycopg2
 from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
                       Update)
 from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
-                          Filters, MessageHandler, Updater, PrefixHandler)
+                          Filters, MessageHandler)
 
 from load import DATABASE_URL, keyboard_row_divider, logger, escape_characters
 
@@ -24,29 +25,29 @@ class StateEnum(Enum):
 
 def get_storages() -> List[str]:
     """Give list of storages from DB"""
-    # connection = psycopg2.connect(DATABASE_URL)
-    # cursor = connection.cursor()
-    # cursor.execute('SELECT Address FROM storages')
-    # storages = [x[0] for x in cursor.fetchall()]
-    # cursor.close()
-    storages = [
-        'Новый Арбат ул., 38',
-        'Гагаринский пер., 85',
-        'Климентовский пер., 79',
-        'Таганская ул., 71'
-    ]
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute('SELECT Address FROM storages')
+    storages = [x[0] for x in cursor.fetchall()]
+    cursor.close()
+    # storages = [
+    #     'Новый Арбат ул., 38',
+    #     'Гагаринский пер., 85',
+    #     'Климентовский пер., 79',
+    #     'Таганская ул., 71'
+    # ]
     return storages
 
 
 def get_types() -> List[str]:
     """Give types of possible things"""
-    # connection = psycopg2.connect(DATABASE_URL)
-    # cursor = connection.cursor()
-    # cursor.execute('SELECT Name FROM typecell WHERE id=1 or id=2')
-    # types = [x[0] for x in cursor.fetchall()]
-    #
-    # cursor.close()
-    types = ['Сезонные вещи', 'Другое']
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute('SELECT Name FROM typecell WHERE id=1 or id=2')
+    types = [x[0] for x in cursor.fetchall()]
+
+    cursor.close()
+    # types = ['Сезонные вещи', 'Другое']
     return types
 
 
@@ -147,17 +148,22 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     storage = context.user_data['storage']
     things_type = context.user_data['type']
     result_answer = f'Мы подготовим для Вас пространство:\nПо адресу: *{storage}*\n'
-
+    invoice_description = f'Адрес: "{storage}"\n'
+    full_cost = None
+    period_start = date.today()
+    period_end = None
     if things_type == 'Другое':
         dimension = context.user_data['dimension']
         other_period = context.user_data['other_period']
         full_cost = str(get_dimension_cost(dimension) * other_period)
+        period_end = date.today() + timedelta(days=other_period * 4 * 7)
         result_answer += (
             f'Для хранения: *{things_type}*\n'
             f'Размером в *{dimension}* кв.м.\n'
             f'На период в *{other_period}* мес.\n'
             f'Общая стоимость составляет: *{full_cost}* рублей'
         )
+        invoice_description += f'Площадь: {dimension} кв.м.\n'
 
     if things_type == 'Сезонные вещи':
         seasonal = context.user_data['seasonal']
@@ -168,9 +174,11 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
         if period_type == 'Недели':
             period_name = 'нед'
             full_cost = cost[0] * period_count * count
+            period_end = date.today() + timedelta(days=period_count * 7)
         else:
             period_name = 'мес'
             full_cost = cost[1] * period_count * count
+            period_end = date.today() + timedelta(days=period_count * 4 * 7)
         full_cost = str(full_cost)
         result_answer += (
             f'Для хранения вещей вида *{seasonal}*\n'
@@ -178,7 +186,15 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
             f'На период *{period_count} {period_name}*\n'
             f'Общая стоимость составляет: *{full_cost}* рублей'
         )
+        invoice_description += f'Храним: "{seasonal}"\n' \
+                               f'Количество: {count} штук\n'
 
+    invoice_description += f'Период хранения ' \
+                           f'c {period_start.strftime("%d.%m.%Y")} ' \
+                           f'по {period_end.strftime("%d.%m.%Y")}'
+
+    context.user_data['invoice_description'] = invoice_description
+    context.user_data['invoice_price'] = full_cost
     update.message.reply_text(
         escape_characters(result_answer),
         reply_markup=ReplyKeyboardRemove(),
