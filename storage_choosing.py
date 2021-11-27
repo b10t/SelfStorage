@@ -5,7 +5,7 @@ import psycopg2
 from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
                       Update)
 from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
-                          Filters, MessageHandler, Updater)
+                          Filters, MessageHandler, Updater, PrefixHandler)
 
 from load import DATABASE_URL, keyboard_row_divider, logger
 
@@ -24,29 +24,29 @@ class StateEnum(Enum):
 
 def get_storages() -> List[str]:
     """Give list of storages from DB"""
-    connection = psycopg2.connect(DATABASE_URL)
-    cursor = connection.cursor()
-    cursor.execute('SELECT Address FROM storages')
-    storages = [x[0] for x in cursor.fetchall()]
-    cursor.close()
-    # storages = [
-    #     'Новый Арбат ул., 38',
-    #     'Гагаринский пер., 85',
-    #     'Климентовский пер., 79',
-    #     'Таганская ул., 71'
-    # ]
+    # connection = psycopg2.connect(DATABASE_URL)
+    # cursor = connection.cursor()
+    # cursor.execute('SELECT Address FROM storages')
+    # storages = [x[0] for x in cursor.fetchall()]
+    # cursor.close()
+    storages = [
+        'Новый Арбат ул., 38',
+        'Гагаринский пер., 85',
+        'Климентовский пер., 79',
+        'Таганская ул., 71'
+    ]
     return storages
 
 
 def get_types() -> List[str]:
     """Give types of possible things"""
-    connection = psycopg2.connect(DATABASE_URL)
-    cursor = connection.cursor()
-    cursor.execute('SELECT Name FROM typecell WHERE id=1 or id=2')
-    types = [x[0] for x in cursor.fetchall()]
-
-    cursor.close()
-    # types = ['Сезонные вещи', 'Другое']
+    # connection = psycopg2.connect(DATABASE_URL)
+    # cursor = connection.cursor()
+    # cursor.execute('SELECT Name FROM typecell WHERE id=1 or id=2')
+    # types = [x[0] for x in cursor.fetchall()]
+    #
+    # cursor.close()
+    types = ['Сезонные вещи', 'Другое']
     return types
 
 
@@ -73,7 +73,7 @@ def get_dimensions() -> List[str]:
 
 def clear_dimension(full_name: str) -> int:
     """Clear dimension phrase"""
-    return int(full_name.split(" ")[0])
+    return int(full_name.split(' ')[0])
 
 
 def get_periods() -> List[str]:
@@ -450,15 +450,14 @@ def get_choosing_handler():
     return ConversationHandler(
         entry_points=[CommandHandler('start', start_handler)],
         states={
-            StateEnum.START: [MessageHandler(Filters.text, start_handler)],
-            StateEnum.STORAGE: [MessageHandler(Filters.text, get_storage)],
-            StateEnum.TYPE: [MessageHandler(Filters.text, get_type)],
-            StateEnum.DIMENSION: [MessageHandler(Filters.text, get_dimension)],
-            StateEnum.PERIOD: [MessageHandler(Filters.text, get_period)],
-            StateEnum.SEASONAL: [MessageHandler(Filters.text, get_seasonal)],
-            StateEnum.COUNT: [MessageHandler(Filters.text, get_count)],
-            StateEnum.PERIOD_TYPE: [MessageHandler(Filters.text, get_period_type)],
-            StateEnum.PERIOD_COUNT: [MessageHandler(Filters.text, get_period_count)],
+            StateEnum.STORAGE: [MessageHandler(Filters.text & ~Filters.command, get_storage)],
+            StateEnum.TYPE: [MessageHandler(Filters.text & ~Filters.command, get_type)],
+            StateEnum.DIMENSION: [MessageHandler(Filters.text & ~Filters.command, get_dimension)],
+            StateEnum.PERIOD: [MessageHandler(Filters.text & ~Filters.command, get_period)],
+            StateEnum.SEASONAL: [MessageHandler(Filters.text & ~Filters.command, get_seasonal)],
+            StateEnum.COUNT: [MessageHandler(Filters.text & ~Filters.command, get_count)],
+            StateEnum.PERIOD_TYPE: [MessageHandler(Filters.text & ~Filters.command, get_period_type)],
+            StateEnum.PERIOD_COUNT: [MessageHandler(Filters.text & ~Filters.command, get_period_count)],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
