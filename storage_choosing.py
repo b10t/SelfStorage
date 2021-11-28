@@ -600,7 +600,7 @@ def start_handler(update: Update, context: CallbackContext) -> StateEnum:
 
 def get_storage(update: Update, context: CallbackContext) -> StateEnum:
     """Handle storage address"""
-    storage_name = update.message.text
+    storage_name = update.message.text.split('(')[0].strip()
     if storage_name not in get_storages()[0]:
         update.message.reply_text(
             'Простите, по данному адресу у нас пока нет складов ('
