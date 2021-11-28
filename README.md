@@ -3,7 +3,7 @@
 Бот позволяет подобрать и арендовать необходимую площадь на складе для хранения вещей.
 
 ### Env Настройки
-Create `.env` from `.env.Example`
+Необходимо создать файл `.env` скопировав `.env.Example`
 1. MODE - `dev` или `prod`, мод работы бота локально или на heroku
 2. TELEGRAM_TOKEN - str, токен бота от [@BotFather](https://t.me/botfather)
 3. PROVIDER_TOKEN - str, токен платежной системы от [@BotFather](https://t.me/botfather) для выбранной системы оплаты для бота
