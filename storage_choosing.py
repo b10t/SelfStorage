@@ -560,7 +560,9 @@ def get_storage_distance(coord_user, storages_data) -> List[float]:
 def send_storage_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about address of storage"""
     storages, storages_data = get_storages()
-
+    if context.user_data['locate']:
+        for x in storages_data:
+            storages = x[0]+'(1)'
     reply_keyboard = list(keyboard_row_divider(storages))
     update.message.reply_text(
         'Выберете адрес хранилища:',
