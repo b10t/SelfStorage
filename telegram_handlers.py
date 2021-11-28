@@ -8,14 +8,11 @@ from telegram.ext import (CallbackContext, CallbackQueryHandler,
                           CommandHandler, ConversationHandler, Filters,
                           MessageHandler)
 
-
-def keyboard_row_divider(full_list, row_width=2):
-    """Divide list into rows for keyboard"""
-    for i in range(0, len(full_list), row_width):
-        yield full_list[i: i + row_width]
+from load import DATABASE_URL, keyboard_row_divider, logger
 
 
 def set_person_info(person_data, user):
+    """Установка данных человека."""
     if 'last_name' not in person_data:
         person_data['last_name'] = '`Введите фамилию`'
         if not user['last_name'] is None:
@@ -50,17 +47,26 @@ def set_person_info(person_data, user):
 
 
 def acceptance_agreement(update: Update, context: CallbackContext):
-    """Принятие соглашения по ПД"""
-    inl_keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("👍 Согласен", callback_data='YES'),
-        InlineKeyboardButton("👎 Не согласен", callback_data='NO')
-    ]])
+    """Принятие соглашения по ПД."""
+    inl_keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton('📄 Ознакомиться с соглашением',
+                                     callback_data='AGREEMENT')],
+            [
+                InlineKeyboardButton('👍 Согласен',
+                                     callback_data='YES'),
+                InlineKeyboardButton('👎 Не согласен',
+                                     callback_data='NO')
+            ]
+        ]
+    )
 
     update.message.reply_text(
-        """❗️*Внимание*❗️
-`Согласно требованиям Федерального закона от 27 июля 2006 г. № 152-ФЗ
-«О персональных данных» Вы должны дать согласие на\
- обработку персональных данных.`""",
+        '❗️*Внимание*❗️\n'
+        '`Согласно требованиям Федерального закона от 27 июля 2006 г. № 152-ФЗ'
+        '«О персональных данных» Вы должны дать согласие на'
+        ' обработку персональных данных.`',
         parse_mode=ParseMode.MARKDOWN_V2,
         reply_markup=inl_keyboard
     )
@@ -68,20 +74,27 @@ def acceptance_agreement(update: Update, context: CallbackContext):
 
 
 def inline_button_agreement(update: Update, context: CallbackContext):
+    """Обработчик кнопок по работе с ПД."""
     bot = update.effective_message.bot
     query = update.callback_query
 
     if query.data == 'YES':
         return show_persion_data(update, context)
-    else:
+    elif query.data == 'NO':
         bot.answerCallbackQuery(
             callback_query_id=update.callback_query.id,
-            text='⛔️ Бот не может продолжить с Вами работу без согласия на сбор ПД.',
+            text='⛔️ Бот не может продолжить с Вами работу'
+                 ' без согласия на сбор ПД.',
             show_alert=True)
+    elif query.data == 'AGREEMENT':
+        with open('agreement.pdf', 'rb') as document:
+            bot.send_document(
+                chat_id=update._effective_chat.id,
+                document=document)
 
 
 def show_persion_data(update: Update, context: CallbackContext):
-    """Отображает персональные данные человека"""
+    """Отображает персональные данные человека."""
     if 'telephone' in dict(context.user_data):
         telephone = PhoneNumber()
         try:
@@ -93,28 +106,28 @@ def show_persion_data(update: Update, context: CallbackContext):
         if phonenumbers.is_valid_number(telephone):
             context.user_data['telephone'] = update.message.text
         else:
-            update.message.reply_text("Вы ввели не правильный номер !",
+            update.message.reply_text('Вы ввели не правильный номер !',
                                       reply_markup=ReplyKeyboardRemove())
             return get_telephone(update, context)
 
-    reply_keyboard = list(keyboard_row_divider(["Да", "Нет"]))
+    reply_keyboard = list(keyboard_row_divider(['Да', 'Нет']))
 
     set_person_info(context.user_data, update.effective_user)
     user_data = context.user_data
 
     update.effective_message.reply_text(
-        f"""_Ваши персональные данные_:
-*Фамилия:* {user_data['last_name']}
-*Имя:* {user_data['first_name']}
-*Отчество:* {user_data['middle_name']}
-*Дата рождения:* {user_data['date_birth']}
-*Паспорт:* {user_data['passport']}
-*☎️:* {user_data['telephone']}""",
+        f"_Ваши персональные данные_:\n"
+        f"*Фамилия:* {user_data['last_name']}\n"
+        f"*Имя:* {user_data['first_name']}\n"
+        f"*Отчество:* {user_data['middle_name']}\n"
+        f"*Дата рождения:* {user_data['date_birth']}\n"
+        f"*Паспорт:* {user_data['passport']}\n"
+        f"*☎️:* {user_data['telephone']}\n",
         parse_mode=ParseMode.MARKDOWN_V2,
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard,
             one_time_keyboard=True,
-            input_field_placeholder="Данные верны ?",
+            input_field_placeholder='Данные верны ?',
             resize_keyboard=True,)
     )
 
@@ -122,10 +135,11 @@ def show_persion_data(update: Update, context: CallbackContext):
 
 
 def process_answer_yes_no(update: Update, context: CallbackContext):
+    """Обработчик кнопок по правильности введённых данных."""
     text = update.message.text
 
     if text == 'Да':
-        update.message.reply_text("Данные приняты !",
+        update.message.reply_text('Данные приняты !',
                                   reply_markup=ReplyKeyboardRemove())
 
         del context.user_data['telephone']
@@ -143,6 +157,7 @@ def process_answer_yes_no(update: Update, context: CallbackContext):
 
 
 def get_surname(update: Update, context: CallbackContext):
+    """Получение фамилии."""
     update.message.reply_text(
         'Ваша фамилия:',
         reply_markup=ForceReply(force_reply=True,
@@ -153,6 +168,7 @@ def get_surname(update: Update, context: CallbackContext):
 
 
 def get_user_name(update: Update, context: CallbackContext):
+    """Получение имени."""
     context.user_data['last_name'] = update.message.text
     update.message.reply_text(
         'Ваше имя:',
@@ -164,6 +180,7 @@ def get_user_name(update: Update, context: CallbackContext):
 
 
 def get_middle_name(update: Update, context: CallbackContext):
+    """Получение отчества."""
     context.user_data['first_name'] = update.message.text
     update.message.reply_text(
         'Ваше отчество:',
@@ -175,6 +192,7 @@ def get_middle_name(update: Update, context: CallbackContext):
 
 
 def get_date_birth(update: Update, context: CallbackContext):
+    """Получение даты рождения."""
     context.user_data['middle_name'] = update.message.text
     update.message.reply_text(
         'Дата рождения:',
@@ -186,6 +204,7 @@ def get_date_birth(update: Update, context: CallbackContext):
 
 
 def get_passport(update: Update, context: CallbackContext):
+    """Получение данных паспорта."""
     context.user_data['date_birth'] = update.message.text
     update.message.reply_text(
         'Данные паспорта:',
@@ -197,6 +216,7 @@ def get_passport(update: Update, context: CallbackContext):
 
 
 def select_input_phone(update: Update, context: CallbackContext):
+    """Отображение способа получения номера телефона."""
     context.user_data['passport'] = update.message.text
 
     enter_phone = KeyboardButton('Ввести номер вручную ☎️',
@@ -220,6 +240,7 @@ def select_input_phone(update: Update, context: CallbackContext):
 
 
 def get_telephone(update: Update, context: CallbackContext):
+    """Получение номера телефона."""
     contact = update.effective_message.contact
     if contact:
         contact = update.effective_message.contact
@@ -236,6 +257,7 @@ def get_telephone(update: Update, context: CallbackContext):
 
 
 def get_handler_person():
+    """Возвращает обработчик разговоров."""
     return ConversationHandler(
         entry_points=[CommandHandler(
             "person_data",
