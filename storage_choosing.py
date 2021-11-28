@@ -9,10 +9,10 @@ from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
                           Filters, MessageHandler)
 
 from load import DATABASE_URL, keyboard_row_divider, logger, escape_characters
+from person_data_handlers import get_handler_person
 
 
 class StateEnum(Enum):
-    START = auto()
     STORAGE = auto()
     TYPE = auto()
     DIMENSION = auto()
@@ -21,33 +21,34 @@ class StateEnum(Enum):
     COUNT = auto()
     PERIOD_TYPE = auto()
     PERIOD_COUNT = auto()
+    PERSON_DATA = auto()
 
 
 def get_storages() -> List[str]:
     """Give list of storages from DB"""
-    connection = psycopg2.connect(DATABASE_URL)
-    cursor = connection.cursor()
-    cursor.execute('SELECT Address FROM storages')
-    storages = [x[0] for x in cursor.fetchall()]
-    cursor.close()
-    # storages = [
-    #     'Новый Арбат ул., 38',
-    #     'Гагаринский пер., 85',
-    #     'Климентовский пер., 79',
-    #     'Таганская ул., 71'
-    # ]
+    # connection = psycopg2.connect(DATABASE_URL)
+    # cursor = connection.cursor()
+    # cursor.execute('SELECT Address FROM storages')
+    # storages = [x[0] for x in cursor.fetchall()]
+    # cursor.close()
+    storages = [
+        'Новый Арбат ул., 38',
+        'Гагаринский пер., 85',
+        'Климентовский пер., 79',
+        'Таганская ул., 71'
+    ]
     return storages
 
 
 def get_types() -> List[str]:
     """Give types of possible things"""
-    connection = psycopg2.connect(DATABASE_URL)
-    cursor = connection.cursor()
-    cursor.execute('SELECT Name FROM typecell WHERE id=1 or id=2')
-    types = [x[0] for x in cursor.fetchall()]
-
-    cursor.close()
-    # types = ['Сезонные вещи', 'Другое']
+    # connection = psycopg2.connect(DATABASE_URL)
+    # cursor = connection.cursor()
+    # cursor.execute('SELECT Name FROM typecell WHERE id=1 or id=2')
+    # types = [x[0] for x in cursor.fetchall()]
+    #
+    # cursor.close()
+    types = ['Сезонные вещи', 'Другое']
     return types
 
 
@@ -197,10 +198,14 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     context.user_data['invoice_price'] = full_cost
     update.message.reply_text(
         escape_characters(result_answer),
-        reply_markup=ReplyKeyboardRemove(),
+        reply_markup=ReplyKeyboardMarkup(
+            [['Подтверждаю']],
+            one_time_keyboard=True,
+            resize_keyboard=True,
+        ),
         parse_mode=ParseMode.MARKDOWN_V2,
     )
-    return ConversationHandler.END
+    return StateEnum.PERSON_DATA
 
 
 def send_period_count_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -463,6 +468,11 @@ def cancel(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
+def successful_payment_callback(update: Update, context: CallbackContext) -> None:
+    """Confirm the successful payment."""
+    update.message.reply_text("Спасибо, что пользуетесь нашим сервисом!")
+
+
 def get_choosing_handler():
     return ConversationHandler(
         entry_points=[CommandHandler('start', start_handler)],
@@ -475,6 +485,9 @@ def get_choosing_handler():
             StateEnum.COUNT: [MessageHandler(Filters.text & ~Filters.command, get_count)],
             StateEnum.PERIOD_TYPE: [MessageHandler(Filters.text & ~Filters.command, get_period_type)],
             StateEnum.PERIOD_COUNT: [MessageHandler(Filters.text & ~Filters.command, get_period_count)],
+            StateEnum.PERSON_DATA: [get_handler_person()]
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[
+            CommandHandler('cancel', cancel),
+            MessageHandler(Filters.successful_payment, successful_payment_callback)],
     )
