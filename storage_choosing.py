@@ -546,6 +546,7 @@ def send_locate_question(update: Update, context: CallbackContext) -> StateEnum:
 
 def get_locate(update: Update, context: CallbackContext):
     """Handle locate"""
+    send_locate_question(update, context)
     user_location = update.message.location
     if user_location:
         context.user_data['locate'] = user_location
