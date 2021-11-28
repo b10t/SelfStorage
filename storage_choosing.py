@@ -541,12 +541,12 @@ def send_locate_question(update: Update, context: CallbackContext) -> StateEnum:
             resize_keyboard=True,)
     )
 
-    return #StateEnum.LOCATE
+    return StateEnum.LOCATE
 
 
 def get_locate(update: Update, context: CallbackContext):
     """Handle locate"""
-    send_locate_question(update, context)
+
     user_location = update.message.location
     if user_location:
         context.user_data['locate'] = user_location
@@ -586,7 +586,7 @@ def start_handler(update: Update, context: CallbackContext) -> StateEnum:
     )
 
     clear_user_data(update, context)
-    return get_locate(update, context)
+    return send_locate_question(update, context)
     #return send_storage_question(update, context)
 
 
