@@ -8,14 +8,11 @@ from telegram.ext import (CallbackContext, CallbackQueryHandler,
                           CommandHandler, ConversationHandler, Filters,
                           MessageHandler)
 
-
-def keyboard_row_divider(full_list, row_width=2):
-    """Divide list into rows for keyboard"""
-    for i in range(0, len(full_list), row_width):
-        yield full_list[i: i + row_width]
+from load import DATABASE_URL, keyboard_row_divider, logger
 
 
 def set_person_info(person_data, user):
+    """Установка данных человека"""
     if 'last_name' not in person_data:
         person_data['last_name'] = '`Введите фамилию`'
         if not user['last_name'] is None:
@@ -51,16 +48,25 @@ def set_person_info(person_data, user):
 
 def acceptance_agreement(update: Update, context: CallbackContext):
     """Принятие соглашения по ПД"""
-    inl_keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("👍 Согласен", callback_data='YES'),
-        InlineKeyboardButton("👎 Не согласен", callback_data='NO')
-    ]])
+    inl_keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton('📄 Ознакомиться с соглашением',
+                                     callback_data='AGREEMENT')],
+            [
+                InlineKeyboardButton('👍 Согласен',
+                                     callback_data='YES'),
+                InlineKeyboardButton('👎 Не согласен',
+                                     callback_data='NO')
+            ]
+        ]
+    )
 
     update.message.reply_text(
-        """❗️*Внимание*❗️
-`Согласно требованиям Федерального закона от 27 июля 2006 г. № 152-ФЗ
-«О персональных данных» Вы должны дать согласие на\
- обработку персональных данных.`""",
+        '❗️*Внимание*❗️\n'
+        '`Согласно требованиям Федерального закона от 27 июля 2006 г. № 152-ФЗ'
+        '«О персональных данных» Вы должны дать согласие на'
+        ' обработку персональных данных.`',
         parse_mode=ParseMode.MARKDOWN_V2,
         reply_markup=inl_keyboard
     )
@@ -73,11 +79,17 @@ def inline_button_agreement(update: Update, context: CallbackContext):
 
     if query.data == 'YES':
         return show_persion_data(update, context)
-    else:
+    elif query.data == 'NO':
         bot.answerCallbackQuery(
             callback_query_id=update.callback_query.id,
-            text='⛔️ Бот не может продолжить с Вами работу без согласия на сбор ПД.',
+            text='⛔️ Бот не может продолжить с Вами работу'
+                 ' без согласия на сбор ПД.',
             show_alert=True)
+    elif query.data == 'AGREEMENT':
+        with open('agreement.pdf', 'rb') as document:
+            bot.send_document(
+                chat_id=update._effective_chat.id,
+                document=document)
 
 
 def show_persion_data(update: Update, context: CallbackContext):
