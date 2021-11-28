@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import psycopg2
 from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
-                      Update)
+                      Update, KeyboardButton)
 from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
                           Filters, MessageHandler)
 
@@ -13,6 +13,7 @@ from person_data_handlers import get_handler_person
 
 
 class StateEnum(Enum):
+    LOCATE = auto()
     STORAGE = auto()
     TYPE = auto()
     DIMENSION = auto()
@@ -299,7 +300,8 @@ def get_count(update: Update, context: CallbackContext) -> StateEnum:
     """Handle count of seasonal things"""
     count = update.message.text
     if not count.isnumeric():
-        update.message.reply_text('Простите, мы храним только целое количество вещей')
+        update.message.reply_text(
+            'Простите, мы храним только целое количество вещей')
         return send_count_question(update, context)
 
     context.user_data['count'] = count
@@ -326,7 +328,8 @@ def get_seasonal(update: Update, context: CallbackContext) -> StateEnum:
     """Handle type of seasonal things"""
     seasonal = update.message.text
     if seasonal not in get_seasonals():
-        update.message.reply_text('Простите, такой вид вещей мы пока не храним')
+        update.message.reply_text(
+            'Простите, такой вид вещей мы пока не храним')
         return send_seasonal_question(update, context)
 
     context.user_data['seasonal'] = seasonal
@@ -380,7 +383,8 @@ def get_dimension(update: Update, context: CallbackContext) -> StateEnum:
     """Handle dimension of a box"""
     dimension = update.message.text
     if dimension not in get_dimensions():
-        update.message.reply_text('Простите, мы сдаем только целочисленную площадь')
+        update.message.reply_text(
+            'Простите, мы сдаем только целочисленную площадь')
         return send_dimensions_question(update, context)
 
     context.user_data['dimension'] = clear_dimension(dimension)
@@ -419,6 +423,39 @@ def get_type(update: Update, context: CallbackContext) -> StateEnum:
     return ConversationHandler.END
 
 
+def send_locate_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about get locate"""
+    get_locate_yes = KeyboardButton(
+        'Да', request_location=True)
+
+    get_locate_no = KeyboardButton(
+        'Нет')
+
+    reply_keyboard = list(keyboard_row_divider(
+        [get_locate_yes, get_locate_no], 2))
+
+    update.message.reply_text(
+        'Хотите определить расстояние до складов ?',
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard,
+            one_time_keyboard=True,
+            input_field_placeholder='',
+            resize_keyboard=True,)
+    )
+
+    return StateEnum.LOCATE
+
+
+def get_locate(update: Update, context: CallbackContext):
+    """Handle locate"""
+    user_location = update.message.location
+    if user_location:
+        context.user_data['locate'] = user_location
+
+    return send_storage_question(update, context)
+
+
 def send_storage_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about address of storage"""
     storages = get_storages()
@@ -443,7 +480,7 @@ def start_handler(update: Update, context: CallbackContext) -> StateEnum:
         'Привет! Я помогу Вам подобрать, забронировать и '
         'арендовать пространство для твоих вещей'
     )
-    return send_storage_question(update, context)
+    return send_locate_question(update, context)
 
 
 def get_storage(update: Update, context: CallbackContext) -> StateEnum:
@@ -463,7 +500,8 @@ def cancel(update: Update, context: CallbackContext) -> int:
     """Cancel and end the conversation."""
     user = update.message.from_user
     logger.info('User %s canceled the conversation.', user.first_name)
-    update.message.reply_text('Всего доброго!', reply_markup=ReplyKeyboardRemove())
+    update.message.reply_text(
+        'Всего доброго!', reply_markup=ReplyKeyboardRemove())
 
     return ConversationHandler.END
 
@@ -477,6 +515,7 @@ def get_choosing_handler():
     return ConversationHandler(
         entry_points=[CommandHandler('start', start_handler)],
         states={
+            StateEnum.LOCATE: [MessageHandler((Filters.text | Filters.location) & ~Filters.command, get_locate)],
             StateEnum.STORAGE: [MessageHandler(Filters.text & ~Filters.command, get_storage)],
             StateEnum.TYPE: [MessageHandler(Filters.text & ~Filters.command, get_type)],
             StateEnum.DIMENSION: [MessageHandler(Filters.text & ~Filters.command, get_dimension)],
