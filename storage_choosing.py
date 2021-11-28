@@ -34,6 +34,7 @@ def clear_user_data(update: Update, context: CallbackContext) -> None:
     context.user_data['other_period'] = None
     context.user_data['seasonal'] = None
     context.user_data['count'] = None
+    context.user_data['locate'] = None
     context.user_data['period_type'] = None
     context.user_data['period_count'] = None
     context.user_data['invoice_description'] = None
@@ -559,8 +560,8 @@ def get_storage_distance(coord_user, storages_data) -> List[float]:
 def send_storage_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about address of storage"""
     storages, storages_data = get_storages()
-    if context.user_data['locate'] is not Null:
-        distance = get_storage_distance(context.user_data['locate'],storages_data)
+    if StateEnum.LOCATE:
+        distance = get_storage_distance(StateEnum.LOCATE,storages_data)
     reply_keyboard = list(keyboard_row_divider(storages))
     update.message.reply_text(
         'Выберете адрес хранилища:',
@@ -589,7 +590,7 @@ def start_handler(update: Update, context: CallbackContext) -> StateEnum:
 def get_storage(update: Update, context: CallbackContext) -> StateEnum:
     """Handle storage address"""
     storage_name = update.message.text
-    if storage_name not in get_storages():
+    if storage_name not in get_storages()[0]:
         update.message.reply_text(
             'Простите, по данному адресу у нас пока нет складов ('
         )
