@@ -1,6 +1,7 @@
 from enum import Enum, auto
 from typing import List
 from datetime import date, timedelta
+from geopy.distance import geodesic
 
 import psycopg2
 from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
@@ -556,14 +557,21 @@ def get_locate(update: Update, context: CallbackContext):
 
 def get_storage_distance(coord_user, storages_data) -> List[float]:
     """give a list of distances to storages"""
-    pass
+    distances=[]
+    origin= (coord_user.latitude,coord_user.longitude)
+    for storage in storages_data:
+        distances.append(geodesic(origin, (storage[1],storage[2])).kilometers)
+    return distances
 
 def send_storage_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about address of storage"""
     storages, storages_data = get_storages()
     if context.user_data['locate']:
+        distances=get_storage_distance(context.user_data['locate'], storages_data)
+        i=0
         for x in storages_data:
-            storages = x[0]+'(1)'
+            storages[i] = f'{x[0]} ({distances[i]:.1f} км)'
+            i+=1
     reply_keyboard = list(keyboard_row_divider(storages))
     update.message.reply_text(
         'Выберете адрес хранилища:',
