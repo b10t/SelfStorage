@@ -2,8 +2,8 @@ import phonenumbers
 from phonenumbers import NumberParseException
 from phonenumbers.phonenumber import PhoneNumber
 from telegram import (ForceReply, InlineKeyboardButton, InlineKeyboardMarkup,
-                      ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
-                      Update, KeyboardButton)
+                      KeyboardButton, ParseMode, ReplyKeyboardMarkup,
+                      ReplyKeyboardRemove, Update)
 from telegram.ext import (CallbackContext, CallbackQueryHandler,
                           CommandHandler, ConversationHandler, Filters,
                           MessageHandler)
@@ -46,6 +46,8 @@ def set_person_info(person_data, user):
         if not user['telephone'] is None:
             person_data['telephone'] = user['telephone']
 
+    person_data['telephone'] = str(person_data['telephone']).replace('+', '\+')
+
 
 def acceptance_agreement(update: Update, context: CallbackContext):
     """Принятие соглашения по ПД"""
@@ -74,8 +76,7 @@ def inline_button_agreement(update: Update, context: CallbackContext):
     else:
         bot.answerCallbackQuery(
             callback_query_id=update.callback_query.id,
-            text='⛔️ Бот не может продолжить с Вами работу\
-                 без согласия на сбор ПД.',
+            text='⛔️ Бот не может продолжить с Вами работу без согласия на сбор ПД.',
             show_alert=True)
 
 
@@ -137,7 +138,7 @@ def process_answer_yes_no(update: Update, context: CallbackContext):
                                     input_field_placeholder='Фамилия',
                                     selective=True)
         )
-        # TODO
+        # TODO вернуть get_surname
         return 'get_passport'
 
 
@@ -219,6 +220,12 @@ def select_input_phone(update: Update, context: CallbackContext):
 
 
 def get_telephone(update: Update, context: CallbackContext):
+    contact = update.effective_message.contact
+    if contact:
+        contact = update.effective_message.contact
+        update.message.text = contact.phone_number
+        return show_persion_data(update, context)
+
     update.message.reply_text(
         'Ваш телефон:',
         reply_markup=ForceReply(force_reply=True,
@@ -228,30 +235,7 @@ def get_telephone(update: Update, context: CallbackContext):
     return 'show_persion_data'
 
 
-def contact_callback(update: Update, context: CallbackContext):
-    contact = update.effective_message.contact
-    update.message.text = contact.phone_number
-
-    return show_persion_data(update, context)
-
-
-def successful_person_data_entry(update: Update, context: CallbackContext):
-    context.user_data['telephone'] = update.message.text
-
-    # update.message.reply_text(
-    #     "Данные успешно введены !",
-    #     reply_markup=ReplyKeyboardRemove()
-    # )
-    return 'show_persion_data'
-
-
-def end_step_person_data(update: Update, context: CallbackContext):
-    return ConversationHandler.END
-
-
-def get_handler_person(dispatcher):
-    dispatcher.add_handler(MessageHandler(Filters.contact, contact_callback))
-
+def get_handler_person():
     return ConversationHandler(
         entry_points=[CommandHandler(
             "person_data",
@@ -259,18 +243,14 @@ def get_handler_person(dispatcher):
         states={
             "inline_button_agreement": [CallbackQueryHandler(inline_button_agreement)],
             "show_persion_data": [MessageHandler(Filters.text, show_persion_data)],
-            "get_surname": [MessageHandler(Filters.text, get_surname)],
-            "get_user_name": [MessageHandler(Filters.text, get_user_name)],
-            "get_middle_name": [MessageHandler(Filters.text, get_middle_name)],
-            "get_date_birth": [MessageHandler(Filters.text, get_date_birth)],
-            "get_passport": [MessageHandler(Filters.text, get_passport)],
-            "select_input_phone": [MessageHandler(Filters.text, select_input_phone)],
-            "get_telephone": [MessageHandler(Filters.text, get_telephone)],
-            "process_answer_yes_no": [MessageHandler(Filters.text, process_answer_yes_no)],
-            "end_step_person_data": [MessageHandler(Filters.text, process_answer_yes_no)],
-            "show_persion_data": [MessageHandler(Filters.text, show_persion_data)],
-            "successful_person_data_entry": [MessageHandler(Filters.text, successful_person_data_entry)],
-            "contact_callback": [MessageHandler(Filters.contact, contact_callback)],
+            "get_surname": [MessageHandler(Filters.text & ~Filters.command, get_surname)],
+            "get_user_name": [MessageHandler(Filters.text & ~Filters.command, get_user_name)],
+            "get_middle_name": [MessageHandler(Filters.text & ~Filters.command, get_middle_name)],
+            "get_date_birth": [MessageHandler(Filters.text & ~Filters.command, get_date_birth)],
+            "get_passport": [MessageHandler(Filters.text & ~Filters.command, get_passport)],
+            "select_input_phone": [MessageHandler(Filters.text & ~Filters.command, select_input_phone)],
+            "get_telephone": [MessageHandler((Filters.text | Filters.contact) & ~Filters.command, get_telephone)],
+            "process_answer_yes_no": [MessageHandler(Filters.text & ~Filters.command, process_answer_yes_no)],
         },
-        fallbacks=[CommandHandler("cancel", show_persion_data)]
+        fallbacks=[CommandHandler("cancel", acceptance_agreement)]
     )
