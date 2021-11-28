@@ -541,7 +541,7 @@ def send_locate_question(update: Update, context: CallbackContext) -> StateEnum:
             resize_keyboard=True,)
     )
 
-    return StateEnum.LOCATE
+    return #StateEnum.LOCATE
 
 
 def get_locate(update: Update, context: CallbackContext):
