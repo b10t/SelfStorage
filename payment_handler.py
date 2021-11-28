@@ -10,7 +10,7 @@ from telegram.ext import (
 from load import PROVIDER_TOKEN
 
 
-def start_without_shipping_callback(update: Update, context: CallbackContext) -> None:
+def start_invoice(update: Update, context: CallbackContext) -> None:
     """Send an invoice"""
     chat_id = update.message.chat_id
     title = "Аренда площади"
@@ -35,16 +35,8 @@ def precheckout_callback(update: Update, context: CallbackContext) -> None:
         query.answer(ok=True)
 
 
-def successful_payment_callback(update: Update, context: CallbackContext) -> None:
-    """Confirms the successful payment."""
-    update.message.reply_text("Спасибо, что пользуетесь нашим сервисом!")
-
-
 def add_payment_handlers(dispatcher) -> None:
     dispatcher.add_handler(CommandHandler(
-        "payme", start_without_shipping_callback))
+        "payme", start_invoice))
 
     dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
-
-    dispatcher.add_handler(MessageHandler(
-        Filters.successful_payment, successful_payment_callback))

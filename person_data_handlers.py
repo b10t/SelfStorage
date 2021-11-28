@@ -9,6 +9,7 @@ from telegram.ext import (CallbackContext, CallbackQueryHandler,
                           MessageHandler)
 
 from load import DATABASE_URL, keyboard_row_divider, logger, escape_characters
+from payment_handler import start_invoice
 
 
 def set_person_info(person_data, user):
@@ -139,11 +140,11 @@ def process_answer_yes_no(update: Update, context: CallbackContext):
     text = update.message.text
 
     if text == 'Да':
-        update.message.reply_text('Данные приняты !',
+        update.message.reply_text('Данные приняты !\nМожно переходить к оплате',
                                   reply_markup=ReplyKeyboardRemove())
 
         del context.user_data['telephone']
-
+        start_invoice(update, context)
         return ConversationHandler.END
     else:
         update.message.reply_text(
@@ -259,8 +260,8 @@ def get_telephone(update: Update, context: CallbackContext):
 def get_handler_person():
     """Возвращает обработчик разговоров."""
     return ConversationHandler(
-        entry_points=[CommandHandler(
-            "person_data",
+        entry_points=[MessageHandler(
+            Filters.regex('^Подтверждаю$'),
             acceptance_agreement)],
         states={
             "inline_button_agreement": [
