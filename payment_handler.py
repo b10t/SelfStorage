@@ -41,9 +41,10 @@ def successful_payment_callback(update: Update, context: CallbackContext) -> Non
 
 
 def add_payment_handlers(dispatcher) -> None:
-    dispatcher.add_handler(CommandHandler("payme", start_without_shipping_callback))
+    dispatcher.add_handler(CommandHandler(
+        "payme", start_without_shipping_callback))
 
     dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
 
-    dispatcher.add_handler(MessageHandler(Filters.successful_payment, successful_payment_callback))
-
+    dispatcher.add_handler(MessageHandler(
+        Filters.successful_payment, successful_payment_callback))

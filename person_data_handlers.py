@@ -8,7 +8,7 @@ from telegram.ext import (CallbackContext, CallbackQueryHandler,
                           CommandHandler, ConversationHandler, Filters,
                           MessageHandler)
 
-from load import DATABASE_URL, keyboard_row_divider, logger
+from load import DATABASE_URL, keyboard_row_divider, logger, escape_characters
 
 
 def set_person_info(person_data, user):
@@ -43,7 +43,7 @@ def set_person_info(person_data, user):
         if not user['telephone'] is None:
             person_data['telephone'] = user['telephone']
 
-    person_data['telephone'] = str(person_data['telephone']).replace('+', '')
+    person_data['telephone'] = escape_characters(str(person_data['telephone']))
 
 
 def acceptance_agreement(update: Update, context: CallbackContext):
