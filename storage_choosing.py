@@ -549,7 +549,7 @@ def get_locate(update: Update, context: CallbackContext):
     user_location = update.message.location
     if user_location:
         context.user_data['locate'] = user_location
-        print(context.user_data['locate'])
+        logger.info("Поле locate",context.user_data['locate'])
 
     return send_storage_question(update, context)
 
