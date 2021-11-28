@@ -43,7 +43,7 @@ def set_person_info(person_data, user):
         if not user['telephone'] is None:
             person_data['telephone'] = user['telephone']
 
-    person_data['telephone'] = str(person_data['telephone']).replace('+', '\+')
+    person_data['telephone'] = str(person_data['telephone']).replace('+', '')
 
 
 def acceptance_agreement(update: Update, context: CallbackContext):
@@ -263,16 +263,65 @@ def get_handler_person():
             "person_data",
             acceptance_agreement)],
         states={
-            "inline_button_agreement": [CallbackQueryHandler(inline_button_agreement)],
-            "show_persion_data": [MessageHandler(Filters.text, show_persion_data)],
-            "get_surname": [MessageHandler(Filters.text & ~Filters.command, get_surname)],
-            "get_user_name": [MessageHandler(Filters.text & ~Filters.command, get_user_name)],
-            "get_middle_name": [MessageHandler(Filters.text & ~Filters.command, get_middle_name)],
-            "get_date_birth": [MessageHandler(Filters.text & ~Filters.command, get_date_birth)],
-            "get_passport": [MessageHandler(Filters.text & ~Filters.command, get_passport)],
-            "select_input_phone": [MessageHandler(Filters.text & ~Filters.command, select_input_phone)],
-            "get_telephone": [MessageHandler((Filters.text | Filters.contact) & ~Filters.command, get_telephone)],
-            "process_answer_yes_no": [MessageHandler(Filters.text & ~Filters.command, process_answer_yes_no)],
+            "inline_button_agreement": [
+                CallbackQueryHandler(
+                    inline_button_agreement
+                )
+            ],
+            "show_persion_data": [
+                MessageHandler(
+                    Filters.text,
+                    show_persion_data
+                )
+            ],
+            "get_surname": [
+                MessageHandler(
+                    Filters.text & ~Filters.command,
+                    get_surname
+                )
+            ],
+            "get_user_name": [
+                MessageHandler(
+                    Filters.text & ~Filters.command,
+                    get_user_name
+                )
+            ],
+            "get_middle_name": [
+                MessageHandler(
+                    Filters.text & ~Filters.command,
+                    get_middle_name
+                )
+            ],
+            "get_date_birth": [
+                MessageHandler(
+                    Filters.text & ~Filters.command,
+                    get_date_birth
+                )
+            ],
+            "get_passport": [
+                MessageHandler(
+                    Filters.text & ~Filters.command,
+                    get_passport
+                )
+            ],
+            "select_input_phone": [
+                MessageHandler(
+                    Filters.text & ~Filters.command,
+                    select_input_phone
+                )
+            ],
+            "get_telephone": [
+                MessageHandler(
+                    (Filters.text | Filters.contact) & ~Filters.command,
+                    get_telephone
+                )
+            ],
+            "process_answer_yes_no": [
+                MessageHandler(
+                    Filters.text & ~Filters.command,
+                    process_answer_yes_no
+                )
+            ],
         },
         fallbacks=[CommandHandler("cancel", acceptance_agreement)]
     )
