@@ -627,10 +627,10 @@ def cancel(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
-def successful_payment_callback(update: Update, context: CallbackContext) -> None:
+def successful_payment_callback(update: Update, context: CallbackContext) -> int:
     """Confirm the successful payment."""
     update.message.reply_text("Спасибо, что пользуетесь нашим сервисом!")
-    get_qr_code(update, context)
+    return get_qr_code(update, context)
 
 
 def get_choosing_handler():
