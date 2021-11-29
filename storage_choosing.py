@@ -11,6 +11,7 @@ from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
 
 from load import DATABASE_URL, keyboard_row_divider, logger, escape_characters
 from person_data_handlers import get_handler_person
+from qr_telegram import get_qr_code
 
 
 class StateEnum(Enum):
@@ -625,6 +626,7 @@ def cancel(update: Update, context: CallbackContext) -> int:
 def successful_payment_callback(update: Update, context: CallbackContext) -> None:
     """Confirm the successful payment."""
     update.message.reply_text("Спасибо, что пользуетесь нашим сервисом!")
+    get_qr_code(update, context)
 
 
 def get_choosing_handler():
