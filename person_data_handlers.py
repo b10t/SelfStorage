@@ -1,4 +1,7 @@
+import datetime
+
 import phonenumbers
+import psycopg2
 from phonenumbers import NumberParseException
 from phonenumbers.phonenumber import PhoneNumber
 from telegram import (ForceReply, InlineKeyboardButton, InlineKeyboardMarkup,
@@ -8,8 +11,102 @@ from telegram.ext import (CallbackContext, CallbackQueryHandler,
                           CommandHandler, ConversationHandler, Filters,
                           MessageHandler)
 
-from load import DATABASE_URL, keyboard_row_divider, logger, escape_characters
+from load import DATABASE_URL, escape_characters, keyboard_row_divider, logger
 from payment_handler import start_invoice
+
+
+def set_user_data_from_db(user_id, context: CallbackContext):
+    """Устанавливает начальные данные человека из БД."""
+    conn = psycopg2.connect(DATABASE_URL)
+    cursor = conn.cursor()
+    cursor.execute(
+        """SELECT fisrtname,
+                  lastname,
+                  patronymic,
+                  telephone,
+                  passportseries,
+                  passportnumber,
+                  birthday
+                  FROM rentuser WHERE id=%s""", (user_id,))
+
+    user_data = cursor.fetchone()
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    if user_data:
+        person_data = context.user_data
+
+        if user_data[0] is not None:
+            person_data['first_name'] = user_data[0]
+
+        if user_data[1] is not None:
+            person_data['last_name'] = user_data[1]
+
+        if user_data[2] is not None:
+            person_data['middle_name'] = user_data[2]
+
+        if user_data[3] is not None:
+            person_data['telephone'] = escape_characters(str(user_data[3]))
+
+        if user_data[4] is not None:
+            person_data['passport'] = '%s %s' % (str(user_data[4]),
+                                                 str(user_data[5]))
+        if user_data[6] is not None:
+            person_data['date_birth'] = user_data[6].strftime('%d\.%m\.%Y')
+
+
+def save_user_data_to_db(update: Update, context: CallbackContext):
+    user_id = update.effective_user.id
+    person_data = context.user_data
+
+    date_birth = datetime.datetime.strptime(
+        person_data['date_birth'], '%d\\.%m\\.%Y').date()
+
+    insert_sql = '''
+        INSERT INTO rentuser (id,
+                              fisrtname,
+                              lastname,
+                              patronymic,
+                              telephone,
+                              passportseries,
+                              passportnumber,
+                              birthday)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (id) DO UPDATE SET
+            fisrtname = EXCLUDED.fisrtname,
+            lastname = EXCLUDED.lastname,
+            patronymic = EXCLUDED.patronymic,
+            telephone = EXCLUDED.telephone,
+            passportseries = EXCLUDED.passportseries,
+            passportnumber = EXCLUDED.passportnumber,
+            birthday = EXCLUDED.birthday;
+    '''
+
+    conn = psycopg2.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute(insert_sql, (user_id,
+                                person_data['first_name'],
+                                person_data['last_name'],
+                                person_data['middle_name'],
+                                person_data['telephone'],
+                                person_data['passport'].split()[0],
+                                person_data['passport'].split()[1],
+                                date_birth))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    #    fisrtname = EXCLUDED.fisrtname,
+    #    lastname = EXCLUDE.lastname,
+    #    patronymic = EXCLUDE.patronymic,
+    #    telephone = EXCLUDE.telephone,
+    #    passportseries = EXCLUDE.passportseries,
+    #    passportnumber = EXCLUDE.passportnumber,
+    #    birthday = EXCLUDE.birthday
 
 
 def set_person_info(person_data, user):
@@ -44,6 +141,8 @@ def set_person_info(person_data, user):
         if not user['telephone'] is None:
             person_data['telephone'] = user['telephone']
 
+    person_data['date_birth'] = escape_characters(
+        str(person_data['date_birth']))
     person_data['telephone'] = escape_characters(str(person_data['telephone']))
 
 
@@ -80,6 +179,9 @@ def inline_button_agreement(update: Update, context: CallbackContext):
     query = update.callback_query
 
     if query.data == 'YES':
+        # Заполняем данные по пользователю из базы.
+        set_user_data_from_db(update.effective_user.id, context)
+
         return show_persion_data(update, context)
     elif query.data == 'NO':
         bot.answerCallbackQuery(
@@ -96,7 +198,7 @@ def inline_button_agreement(update: Update, context: CallbackContext):
 
 def show_persion_data(update: Update, context: CallbackContext):
     """Отображает персональные данные человека."""
-    if 'telephone' in dict(context.user_data):
+    if 'telephone' in dict(context.user_data) and update.message is not None:
         telephone = PhoneNumber()
         try:
             telephone = phonenumbers.parse(
@@ -140,6 +242,8 @@ def process_answer_yes_no(update: Update, context: CallbackContext):
     text = update.message.text
 
     if text == 'Да':
+        save_user_data_to_db(update, context)
+
         update.message.reply_text('Данные приняты !\nМожно переходить к оплате',
                                   reply_markup=ReplyKeyboardRemove())
 
@@ -153,8 +257,8 @@ def process_answer_yes_no(update: Update, context: CallbackContext):
                                     input_field_placeholder='Фамилия',
                                     selective=True)
         )
-        # TODO вернуть get_surname
-        return 'get_passport'
+        # TODO вернуть get_user_name
+        return 'get_user_name'
 
 
 def get_surname(update: Update, context: CallbackContext):

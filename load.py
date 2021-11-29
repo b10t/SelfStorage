@@ -27,6 +27,8 @@ def keyboard_row_divider(full_list, row_width=2):
 
 def escape_characters(text: str) -> str:
     """Screen characters for Markdown V2"""
+    text = text.replace('\\', '')
+
     characters = ['.', '+']
     for character in characters:
         text = text.replace(character, f'\{character}')
