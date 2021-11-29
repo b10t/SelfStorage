@@ -21,7 +21,7 @@ def get_qr_code(update: Update, context: CallbackContext) -> None:
     ]
     message_id = update.message.message_id
     text = ' '.join(text_in_code)
-    qr = QRCode(text, encoding='utf-8')
+    qr = QRCode(text)
     qr.png('code.png', scale=10)
     update.message.reply_photo(
         photo=open('code.png', 'rb'),
