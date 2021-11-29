@@ -32,7 +32,7 @@ def start_invoice(update: Update, context: CallbackContext) -> None:
 def precheckout_callback(update: Update, context: CallbackContext) -> None:
     """Answer the PreQecheckoutQuery"""
     query = update.pre_checkout_query
-    if query.invoice_payload != 'PayloadBot22':
+    if query.invoice_payload != 'SelfStorage':
         query.answer(ok=False, error_message="Something went wrong...")
     else:
         query.answer(ok=True)
