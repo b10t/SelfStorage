@@ -173,7 +173,7 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     """Send calculation of full price"""
     storage = context.user_data['storage']
     things_type = context.user_data['type']
-    discount = context.user_data['discount']
+    discount = float(context.user_data['discount'])
     result_answer = f'Мы подготовим для Вас пространство:\nПо адресу: *{storage}*\n'
     invoice_description = f'Адрес: "{storage}"\n'
     full_cost = None
@@ -182,7 +182,7 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     if things_type == 'Другое':
         dimension = context.user_data['dimension']
         other_period = context.user_data['other_period']
-        full_cost = get_dimension_cost(dimension) * other_period
+        full_cost = float(get_dimension_cost(dimension) * other_period)
         full_cost_discount = full_cost * (1 - discount)
         period_end = date.today() + timedelta(days=other_period * 4 * 7)
         result_answer += (
@@ -202,11 +202,11 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
         period_count = int(context.user_data['period_count'])
         if period_type == 'Недели':
             period_name = 'нед'
-            full_cost = cost[0] * period_count * count
+            full_cost = float(cost[0] * period_count * count)
             period_end = date.today() + timedelta(days=period_count * 7)
         else:
             period_name = 'мес'
-            full_cost = cost[1] * period_count * count
+            full_cost = float(cost[1] * period_count * count)
             period_end = date.today() + timedelta(days=period_count * 4 * 7)
         full_cost_discount = full_cost * (1 - discount)
         result_answer += (
@@ -293,8 +293,9 @@ def get_promo(update: Update, context: CallbackContext) -> StateEnum:
         return StateEnum.CHANGE_PERIOD
 
     discount = all_promos.get(promo)
-    context.user_data['discount'] = discount
-    update.message.reply_text(f'Ваша скидка составляет {discount*100}%')
+    context.user_data['discount'] = float(discount)
+    if discount > 0:
+        update.message.reply_text(f'Ваша скидка составляет {discount*100:.0f}%')
     return send_full_price(update, context)
 
 
