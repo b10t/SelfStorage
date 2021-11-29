@@ -17,7 +17,7 @@ def get_qr_code(update: Update, context: CallbackContext) -> None:
         context.user_data['first_name'],
         context.user_data['storage'],
         context.user_data['type'],
-        context.user_data['invoice_price']
+        str(context.user_data['invoice_price'])
     ]
     message_id = update.message.message_id
     text = ' '.join(text_in_code)
