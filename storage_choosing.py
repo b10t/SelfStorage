@@ -1,6 +1,7 @@
 from enum import Enum, auto
 from typing import List
 from datetime import date, timedelta
+from geopy.distance import geodesic
 
 import psycopg2
 from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
@@ -22,23 +23,37 @@ class StateEnum(Enum):
     COUNT = auto()
     PERIOD_TYPE = auto()
     PERIOD_COUNT = auto()
+    PROMO = auto()
+    CHANGE_PERIOD = auto()
     PERSON_DATA = auto()
 
 
-def get_storages() -> List[str]:
+def clear_user_data(update: Update, context: CallbackContext) -> None:
+    context.user_data['storage'] = None
+    context.user_data['type'] = None
+    context.user_data['dimension'] = None
+    context.user_data['other_period'] = None
+    context.user_data['seasonal'] = None
+    context.user_data['count'] = None
+    context.user_data['locate'] = None
+    context.user_data['period_type'] = None
+    context.user_data['period_count'] = None
+    context.user_data['invoice_description'] = None
+    context.user_data['invoice_price'] = None
+    context.user_data['invoice_discount'] = None
+    context.user_data['discount'] = None
+    context.user_data['promo'] = None
+
+
+def get_storages() -> [List[str],List[str]]:
     """Give list of storages from DB"""
     connection = psycopg2.connect(DATABASE_URL)
     cursor = connection.cursor()
-    cursor.execute('SELECT Address FROM storages')
-    storages = [x[0] for x in cursor.fetchall()]
+    cursor.execute('SELECT Address, Latitude, Longitude  FROM storages')
+    storages_data = cursor.fetchall()
+    storages = [x[0] for x in storages_data]
     cursor.close()
-    # storages = [
-    #     'Новый Арбат ул., 38',
-    #     'Гагаринский пер., 85',
-    #     'Климентовский пер., 79',
-    #     'Таганская ул., 71'
-    # ]
-    return storages
+    return storages,storages_data
 
 
 def get_types() -> List[str]:
@@ -49,7 +64,6 @@ def get_types() -> List[str]:
     types = [x[0] for x in cursor.fetchall()]
 
     cursor.close()
-    # types = ['Сезонные вещи', 'Другое']
     return types
 
 
@@ -99,29 +113,33 @@ def clear_period(full_name: str) -> int:
 
 def get_seasonal_cost(seasonal: str) -> [int, int]:
     """Give cost for seasonal for a week and month in one tuple"""
-    if seasonal == 'Лыжи':
-        return 100, 300
-    if seasonal == 'Сноуборд':
-        return 100, 300
-    if seasonal == 'Колёса':
-        return None, 50
-    if seasonal == 'Велосипед':
-        return 150, 400
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute('SELECT name, cost1, cost2 FROM typecell')
+    type_cells = cursor.fetchall()
+    cursor.close()
+    for type_cell in type_cells:
+        if seasonal == type_cell[0]:
+            return type_cell[1],type_cell[2]
 
 
 def get_seasonals() -> List[str]:
     """Give seasonal types of things"""
-    seasonals = ['Лыжи', 'Сноуборд', 'Велосипед', 'Колёса']
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute('SELECT name FROM typecell WHERE id > 2')
+    seasonals =  [x[0] for x in cursor.fetchall()]
+    cursor.close()
     return seasonals
 
 
 def get_seasonals_week() -> List[str]:
     """Give seasonals for choice week or month long"""
-    seasonals = [
-        'Лыжи',
-        'Сноуборд',
-        'Велосипед',
-    ]
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute('SELECT name FROM typecell WHERE cost1 is not Null AND id>2')
+    seasonals = [x[0] for x in cursor.fetchall()]
+    cursor.close()
     return seasonals
 
 
@@ -145,10 +163,17 @@ def clear_period_count(full_name: str) -> int:
     return int(full_name.split(' ')[0])
 
 
+def get_promos() -> dict[str, float]:
+    """Give all promos"""
+    promos = {'storage2022': 0.2, 'storage15': 0.15, 'Нет Промокода :(': 0}
+    return promos
+
+
 def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     """Send calculation of full price"""
     storage = context.user_data['storage']
     things_type = context.user_data['type']
+    discount = float(context.user_data['discount'])
     result_answer = f'Мы подготовим для Вас пространство:\nПо адресу: *{storage}*\n'
     invoice_description = f'Адрес: "{storage}"\n'
     full_cost = None
@@ -157,13 +182,15 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     if things_type == 'Другое':
         dimension = context.user_data['dimension']
         other_period = context.user_data['other_period']
-        full_cost = str(get_dimension_cost(dimension) * other_period)
+        full_cost = float(get_dimension_cost(dimension) * other_period)
+        full_cost_discount = full_cost * (1 - discount)
         period_end = date.today() + timedelta(days=other_period * 4 * 7)
         result_answer += (
             f'Для хранения: *{things_type}*\n'
             f'Размером в *{dimension}* кв.м.\n'
             f'На период в *{other_period}* мес.\n'
-            f'Общая стоимость составляет: *{full_cost}* рублей'
+            f'Стоимость без скидки: *{full_cost:.2f}* рублей \n'
+            f'Итоговая стоимость составляет: *{full_cost_discount:.2f}* рублей'
         )
         invoice_description += f'Площадь: {dimension} кв.м.\n'
 
@@ -175,18 +202,19 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
         period_count = int(context.user_data['period_count'])
         if period_type == 'Недели':
             period_name = 'нед'
-            full_cost = cost[0] * period_count * count
+            full_cost = float(cost[0] * period_count * count)
             period_end = date.today() + timedelta(days=period_count * 7)
         else:
             period_name = 'мес'
-            full_cost = cost[1] * period_count * count
+            full_cost = float(cost[1] * period_count * count)
             period_end = date.today() + timedelta(days=period_count * 4 * 7)
-        full_cost = str(full_cost)
+        full_cost_discount = full_cost * (1 - discount)
         result_answer += (
             f'Для хранения вещей вида *{seasonal}*\n'
             f'В количестве *{count}* штук\n'
             f'На период *{period_count} {period_name}*\n'
-            f'Общая стоимость составляет: *{full_cost}* рублей'
+            f'Стоимость без скидки: *{full_cost:.2f}* рублей \n'
+            f'Итоговая стоимость составляет: *{full_cost_discount:.2f}* рублей'
         )
         invoice_description += f'Храним: "{seasonal}"\n' \
                                f'Количество: {count} штук\n'
@@ -197,6 +225,7 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
 
     context.user_data['invoice_description'] = invoice_description
     context.user_data['invoice_price'] = full_cost
+    context.user_data['invoice_discount'] = discount
     update.message.reply_text(
         escape_characters(result_answer),
         reply_markup=ReplyKeyboardMarkup(
@@ -207,6 +236,67 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
         parse_mode=ParseMode.MARKDOWN_V2,
     )
     return StateEnum.PERSON_DATA
+
+
+def send_promo_question(update: Update, context: CallbackContext) -> StateEnum:
+    """Send question about promo"""
+    if context.user_data['promo']:
+        return get_promo(update, context)
+    update.message.reply_text(
+        'Промокод на скидку',
+        reply_markup=ReplyKeyboardMarkup(
+            [['Нет Промокода :(']],
+            one_time_keyboard=True,
+            input_field_placeholder='Промокод',
+            resize_keyboard=True,
+        ),
+    )
+    return StateEnum.PROMO
+
+
+def get_promo(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle promo"""
+    promo = update.message.text
+    if context.user_data['promo']:
+        promo = context.user_data['promo']
+    all_promos = get_promos()
+    if context.user_data['period_count']:
+        period_count = int(context.user_data['period_count'])
+        period_type = context.user_data['period_type']
+    else:
+        period_count = int(context.user_data['other_period'])
+        period_type = 'Месяцы'
+    promo_err = ''
+
+    if promo not in all_promos:
+        update.message.reply_text('Простите, срок действия данного промокода истек')
+        return send_promo_question(update, context)
+
+    promo_length = period_count
+    if period_type == 'Месяцы':
+        promo_length = period_count*4
+    if promo_length < 12 and promo == 'storage2022':
+        promo_err = 'Промокод начинает действовать от аренды на 3 месяцы и более, ' \
+                    'хотите сменить продолжительность аренды?'
+    if promo_length > 8 and promo == 'storage15':
+        promo_err = 'Промокод работает на срок до 2х месяцев включительно, ' \
+                    'хотите сменить продолжительность аренды?'
+    if promo_err:
+        context.user_data['promo'] = promo
+        update.message.reply_text(
+            promo_err,
+            reply_markup=ReplyKeyboardMarkup(
+                [['Да', 'Нет']],
+                one_time_keyboard=True,
+                resize_keyboard=True,
+            ),)
+        return StateEnum.CHANGE_PERIOD
+
+    discount = all_promos.get(promo)
+    context.user_data['discount'] = float(discount)
+    if discount > 0:
+        update.message.reply_text(f'Ваша скидка составляет {discount*100:.0f}%')
+    return send_full_price(update, context)
 
 
 def send_period_count_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -235,6 +325,15 @@ def get_period_count(update: Update, context: CallbackContext) -> StateEnum:
         return send_period_count_question(update, context)
 
     context.user_data['period_count'] = clear_period_count(period_count)
+    return send_promo_question(update, context)
+
+
+def get_change_period(update: Update, context: CallbackContext) -> StateEnum:
+    """Handle changing period"""
+    will_change = update.message.text
+    if will_change == 'Да':
+        return send_period_count_question(update, context)
+
     return send_full_price(update, context)
 
 
@@ -360,7 +459,7 @@ def get_period(update: Update, context: CallbackContext) -> StateEnum:
         return send_period_question(update, context)
 
     context.user_data['other_period'] = clear_period(period)
-    return send_full_price(update, context)
+    return send_promo_question(update, context)
 
 
 def send_dimensions_question(update: Update, context: CallbackContext) -> StateEnum:
@@ -449,17 +548,31 @@ def send_locate_question(update: Update, context: CallbackContext) -> StateEnum:
 
 def get_locate(update: Update, context: CallbackContext):
     """Handle locate"""
+
     user_location = update.message.location
     if user_location:
         context.user_data['locate'] = user_location
+        logger.info("Поле locate",context.user_data['locate'])
 
     return send_storage_question(update, context)
 
+def get_storage_distance(coord_user, storages_data) -> List[float]:
+    """give a list of distances to storages"""
+    distances=[]
+    origin= (coord_user.latitude,coord_user.longitude)
+    for storage in storages_data:
+        distances.append(geodesic(origin, (storage[1],storage[2])).kilometers)
+    return distances
 
 def send_storage_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about address of storage"""
-    storages = get_storages()
-
+    storages, storages_data = get_storages()
+    if context.user_data['locate']:
+        distances=get_storage_distance(context.user_data['locate'], storages_data)
+        i=0
+        for x in storages_data:
+            storages[i] = f'{x[0]} ({distances[i]:.1f} км)'
+            i+=1
     reply_keyboard = list(keyboard_row_divider(storages))
     update.message.reply_text(
         'Выберете адрес хранилища:',
@@ -480,13 +593,16 @@ def start_handler(update: Update, context: CallbackContext) -> StateEnum:
         'Привет! Я помогу Вам подобрать, забронировать и '
         'арендовать пространство для твоих вещей'
     )
+
+    clear_user_data(update, context)
     return send_locate_question(update, context)
+    #return send_storage_question(update, context)
 
 
 def get_storage(update: Update, context: CallbackContext) -> StateEnum:
     """Handle storage address"""
-    storage_name = update.message.text
-    if storage_name not in get_storages():
+    storage_name = update.message.text.split('(')[0].strip()
+    if storage_name not in get_storages()[0]:
         update.message.reply_text(
             'Простите, по данному адресу у нас пока нет складов ('
         )
@@ -524,6 +640,8 @@ def get_choosing_handler():
             StateEnum.COUNT: [MessageHandler(Filters.text & ~Filters.command, get_count)],
             StateEnum.PERIOD_TYPE: [MessageHandler(Filters.text & ~Filters.command, get_period_type)],
             StateEnum.PERIOD_COUNT: [MessageHandler(Filters.text & ~Filters.command, get_period_count)],
+            StateEnum.PROMO: [MessageHandler(Filters.text & ~Filters.command, get_promo)],
+            StateEnum.CHANGE_PERIOD: [MessageHandler(Filters.text & ~Filters.command, get_change_period)],
             StateEnum.PERSON_DATA: [get_handler_person()]
         },
         fallbacks=[
