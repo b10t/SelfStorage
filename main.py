@@ -45,8 +45,10 @@ if __name__ == "__main__":
     # person_data
     dispatcher.add_handler(get_handler_person())
 
+    add_qr_handlers(dispatcher)
+
     add_payment_handlers(dispatcher)
 
-    add_qr_handlers(dispatcher)
+
 
     run(updater)
