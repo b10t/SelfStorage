@@ -1,6 +1,7 @@
 from enum import Enum, auto
 from typing import List
 from datetime import date, timedelta
+from geopy.distance import geodesic
 
 import psycopg2
 from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
@@ -34,6 +35,7 @@ def clear_user_data(update: Update, context: CallbackContext) -> None:
     context.user_data['other_period'] = None
     context.user_data['seasonal'] = None
     context.user_data['count'] = None
+    context.user_data['locate'] = None
     context.user_data['period_type'] = None
     context.user_data['period_count'] = None
     context.user_data['invoice_description'] = None
@@ -43,14 +45,15 @@ def clear_user_data(update: Update, context: CallbackContext) -> None:
     context.user_data['promo'] = None
 
 
-def get_storages() -> List[str]:
+def get_storages() -> [List[str],List[str]]:
     """Give list of storages from DB"""
     connection = psycopg2.connect(DATABASE_URL)
     cursor = connection.cursor()
-    cursor.execute('SELECT Address FROM storages')
-    storages = [x[0] for x in cursor.fetchall()]
+    cursor.execute('SELECT Address, Latitude, Longitude  FROM storages')
+    storages_data = cursor.fetchall()
+    storages = [x[0] for x in storages_data]
     cursor.close()
-    return storages
+    return storages,storages_data
 
 
 def get_types() -> List[str]:
@@ -110,29 +113,33 @@ def clear_period(full_name: str) -> int:
 
 def get_seasonal_cost(seasonal: str) -> [int, int]:
     """Give cost for seasonal for a week and month in one tuple"""
-    if seasonal == 'Лыжи':
-        return 100, 300
-    if seasonal == 'Сноуборд':
-        return 100, 300
-    if seasonal == 'Колёса':
-        return None, 50
-    if seasonal == 'Велосипед':
-        return 150, 400
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute('SELECT name, cost1, cost2 FROM typecell')
+    type_cells = cursor.fetchall()
+    cursor.close()
+    for type_cell in type_cells:
+        if seasonal == type_cell[0]:
+            return type_cell[1],type_cell[2]
 
 
 def get_seasonals() -> List[str]:
     """Give seasonal types of things"""
-    seasonals = ['Лыжи', 'Сноуборд', 'Велосипед', 'Колёса']
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute('SELECT name FROM typecell WHERE id > 2')
+    seasonals =  [x[0] for x in cursor.fetchall()]
+    cursor.close()
     return seasonals
 
 
 def get_seasonals_week() -> List[str]:
     """Give seasonals for choice week or month long"""
-    seasonals = [
-        'Лыжи',
-        'Сноуборд',
-        'Велосипед',
-    ]
+    connection = psycopg2.connect(DATABASE_URL)
+    cursor = connection.cursor()
+    cursor.execute('SELECT name FROM typecell WHERE cost1 is not Null AND id>2')
+    seasonals = [x[0] for x in cursor.fetchall()]
+    cursor.close()
     return seasonals
 
 
@@ -540,17 +547,31 @@ def send_locate_question(update: Update, context: CallbackContext) -> StateEnum:
 
 def get_locate(update: Update, context: CallbackContext):
     """Handle locate"""
+
     user_location = update.message.location
     if user_location:
         context.user_data['locate'] = user_location
+        logger.info("Поле locate",context.user_data['locate'])
 
     return send_storage_question(update, context)
 
+def get_storage_distance(coord_user, storages_data) -> List[float]:
+    """give a list of distances to storages"""
+    distances=[]
+    origin= (coord_user.latitude,coord_user.longitude)
+    for storage in storages_data:
+        distances.append(geodesic(origin, (storage[1],storage[2])).kilometers)
+    return distances
 
 def send_storage_question(update: Update, context: CallbackContext) -> StateEnum:
     """Send question about address of storage"""
-    storages = get_storages()
-
+    storages, storages_data = get_storages()
+    if context.user_data['locate']:
+        distances=get_storage_distance(context.user_data['locate'], storages_data)
+        i=0
+        for x in storages_data:
+            storages[i] = f'{x[0]} ({distances[i]:.1f} км)'
+            i+=1
     reply_keyboard = list(keyboard_row_divider(storages))
     update.message.reply_text(
         'Выберете адрес хранилища:',
@@ -573,13 +594,14 @@ def start_handler(update: Update, context: CallbackContext) -> StateEnum:
     )
 
     clear_user_data(update, context)
-    return send_storage_question(update, context)
+    return send_locate_question(update, context)
+    #return send_storage_question(update, context)
 
 
 def get_storage(update: Update, context: CallbackContext) -> StateEnum:
     """Handle storage address"""
-    storage_name = update.message.text
-    if storage_name not in get_storages():
+    storage_name = update.message.text.split('(')[0].strip()
+    if storage_name not in get_storages()[0]:
         update.message.reply_text(
             'Простите, по данному адресу у нас пока нет складов ('
         )
