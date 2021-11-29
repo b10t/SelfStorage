@@ -20,7 +20,7 @@ def get_qr_code(update: Update, context: CallbackContext) -> None:
         str(context.user_data['invoice_price'])
     ]
     message_id = update.message.message_id
-    text = ' '.join(str(text_in_code)
+    text = ' '.join(text_in_code)
     qr = QRCode(text)
     qr.png('code.png', scale=10)
     update.message.reply_photo(
