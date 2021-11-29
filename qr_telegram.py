@@ -12,11 +12,11 @@ from telegram.ext import (CallbackContext, CallbackQueryHandler,
 def get_qr_code(update: Update, context: CallbackContext) -> None:
     """get qr code for text_in_code"""
     text_in_code = [
-        context.user_data['last_name'],
-        context.user_data['first_name'],
-        context.user_data['storage'],
-        context.user_data['type'],
-        str(context.user_data['invoice_price'])
+        getattr(context.user_data, 'last_name', ''),
+        getattr(context.user_data, 'first_name', ''),
+        getattr(context.user_data, 'storage', ''),
+        getattr(context.user_data, 'type', ''),
+        getattr(context.user_data, 'invoice_price', '')
     ]
     message_id = update.message.message_id
     text = ' '.join(text_in_code)
