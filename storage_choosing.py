@@ -138,7 +138,8 @@ def get_seasonals_week() -> List[str]:
     """Give seasonals for choice week or month long"""
     connection = psycopg2.connect(DATABASE_URL)
     cursor = connection.cursor()
-    cursor.execute('SELECT name FROM typecell WHERE cost1 is not Null AND id>2')
+    cursor.execute(
+        'SELECT name FROM typecell WHERE cost1 is not Null AND id>2')
     seasonals = [x[0] for x in cursor.fetchall()]
     cursor.close()
     return seasonals
@@ -164,7 +165,7 @@ def clear_period_count(full_name: str) -> int:
     return int(full_name.split(' ')[0])
 
 
-def get_promos() -> dict[str, float]:
+def get_promos():  # -> dict[str, float]:
     """Give all promos"""
     promos = {'storage2022': 0.2, 'storage15': 0.15, 'Нет Промокода :(': 0}
     return promos
@@ -270,7 +271,8 @@ def get_promo(update: Update, context: CallbackContext) -> StateEnum:
     promo_err = ''
 
     if promo not in all_promos.keys():
-        update.message.reply_text('Простите, срок действия данного промокода истек')
+        update.message.reply_text(
+            'Простите, срок действия данного промокода истек')
         return send_promo_question(update, context)
 
     promo_length = period_count
@@ -296,7 +298,8 @@ def get_promo(update: Update, context: CallbackContext) -> StateEnum:
     discount = all_promos.get(promo)
     context.user_data['discount'] = float(discount)
     if discount > 0:
-        update.message.reply_text(f'Ваша скидка составляет {discount * 100:.0f}%')
+        update.message.reply_text(
+            f'Ваша скидка составляет {discount * 100:.0f}%')
     return send_full_price(update, context)
 
 
@@ -570,7 +573,8 @@ def send_storage_question(update: Update, context: CallbackContext) -> StateEnum
     """Send question about address of storage"""
     storages, storages_data = get_storages()
     if context.user_data['locate']:
-        distances = get_storage_distance(context.user_data['locate'], storages_data)
+        distances = get_storage_distance(
+            context.user_data['locate'], storages_data)
         i = 0
         for x in storages_data:
             storages[i] = f'{x[0]} ({distances[i]:.1f} км)'

@@ -61,8 +61,12 @@ def save_user_data_to_db(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     person_data = context.user_data
 
-    date_birth = datetime.datetime.strptime(
-        person_data['date_birth'], '%d\\.%m\\.%Y').date()
+    date_birth = None
+    try:
+        date_birth = datetime.datetime.strptime(
+            person_data['date_birth'], '%d\\.%m\\.%Y').date()
+    except ValueError:
+        pass
 
     insert_sql = '''
         INSERT INTO rentuser (id,
@@ -99,14 +103,6 @@ def save_user_data_to_db(update: Update, context: CallbackContext):
     conn.commit()
     cursor.close()
     conn.close()
-
-    #    fisrtname = EXCLUDED.fisrtname,
-    #    lastname = EXCLUDE.lastname,
-    #    patronymic = EXCLUDE.patronymic,
-    #    telephone = EXCLUDE.telephone,
-    #    passportseries = EXCLUDE.passportseries,
-    #    passportnumber = EXCLUDE.passportnumber,
-    #    birthday = EXCLUDE.birthday
 
 
 def set_person_info(person_data, user):
@@ -361,6 +357,11 @@ def get_telephone(update: Update, context: CallbackContext):
     return 'show_persion_data'
 
 
+def cancel(update: Update, context: CallbackContext):
+    """Прекращает работу очереди разговора."""
+    return ConversationHandler.END
+
+
 def get_handler_person():
     """Возвращает обработчик разговоров."""
     return ConversationHandler(
@@ -431,5 +432,5 @@ def get_handler_person():
                 )
             ],
         },
-        fallbacks=[CommandHandler("cancel", acceptance_agreement)]
+        fallbacks=[CommandHandler("cancel", cancel)]
     )

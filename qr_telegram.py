@@ -12,7 +12,7 @@ from telegram.ext import (CallbackContext, CallbackQueryHandler,
 
 def get_qr_code(update: Update, context: CallbackContext) -> None:
     """get qr code for text_in_code"""
-    text_in_code=[
+    text_in_code = [
         context.user_data['last_name'],
         context.user_data['first_name'],
         context.user_data['storage'],
@@ -23,8 +23,10 @@ def get_qr_code(update: Update, context: CallbackContext) -> None:
     text = ' '.join(text_in_code)
     qr = QRCode(text)
     qr.png('code.png', scale=10)
-    update.message.reply_photo(photo=open(
-        'code.png', 'rb'), reply_to_message_id=message_id, caption=f'Ваш QR-код для входа в хранилище')
+    update.message.reply_photo(
+        photo=open('code.png', 'rb'),
+        reply_to_message_id=message_id,
+        caption='Ваш QR-код для входа в хранилище')
     os.remove('code.png')
 
 
