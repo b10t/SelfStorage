@@ -4,10 +4,20 @@ from datetime import date, timedelta
 from geopy.distance import geodesic
 
 import psycopg2
-from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
-                      Update, KeyboardButton)
-from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
-                          Filters, MessageHandler)
+from telegram import (
+    ParseMode,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+    Update,
+    KeyboardButton,
+)
+from telegram.ext import (
+    CallbackContext,
+    CommandHandler,
+    ConversationHandler,
+    Filters,
+    MessageHandler,
+)
 
 from load import DATABASE_URL, keyboard_row_divider, logger, escape_characters
 from person_data_handlers import get_handler_person
@@ -139,7 +149,8 @@ def get_seasonals_week() -> List[str]:
     connection = psycopg2.connect(DATABASE_URL)
     cursor = connection.cursor()
     cursor.execute(
-        'SELECT name FROM typecell WHERE cost1 is not Null AND id>2')
+        'SELECT name FROM typecell WHERE cost1 is not Null AND id>2'
+    )
     seasonals = [x[0] for x in cursor.fetchall()]
     cursor.close()
     return seasonals
@@ -176,7 +187,9 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
     storage = context.user_data['storage']
     things_type = context.user_data['type']
     discount = float(context.user_data['discount'])
-    result_answer = f'Мы подготовим для Вас пространство:\nПо адресу: *{storage}*\n'
+    result_answer = (
+        f'Мы подготовим для Вас пространство:\nПо адресу: *{storage}*\n'
+    )
     invoice_description = f'Адрес: "{storage}"\n'
     full_cost = None
     period_start = date.today()
@@ -218,12 +231,15 @@ def send_full_price(update: Update, context: CallbackContext) -> StateEnum:
             f'Стоимость без скидки: *{full_cost:.2f}* рублей \n'
             f'Итоговая стоимость составляет: *{full_cost_discount:.2f}* рублей'
         )
-        invoice_description += f'Храним: "{seasonal}"\n' \
-                               f'Количество: {count} штук\n'
+        invoice_description += (
+            f'Храним: "{seasonal}"\n' f'Количество: {count} штук\n'
+        )
 
-    invoice_description += f'Период хранения ' \
-                           f'c {period_start.strftime("%d.%m.%Y")} ' \
-                           f'по {period_end.strftime("%d.%m.%Y")}'
+    invoice_description += (
+        f'Период хранения '
+        f'c {period_start.strftime("%d.%m.%Y")} '
+        f'по {period_end.strftime("%d.%m.%Y")}'
+    )
 
     context.user_data['invoice_description'] = invoice_description
     context.user_data['invoice_price'] = full_cost
@@ -272,18 +288,23 @@ def get_promo(update: Update, context: CallbackContext) -> StateEnum:
 
     if promo not in all_promos.keys():
         update.message.reply_text(
-            'Простите, срок действия данного промокода истек')
+            'Простите, срок действия данного промокода истек'
+        )
         return send_promo_question(update, context)
 
     promo_length = period_count
     if period_type == 'Месяцы':
         promo_length = period_count * 4
     if promo_length < 12 and promo == 'storage2022':
-        promo_err = 'Промокод начинает действовать от аренды на 3 месяцы и более, ' \
-                    'хотите сменить продолжительность аренды?'
+        promo_err = (
+            'Промокод начинает действовать от аренды на 3 месяцы и более, '
+            'хотите сменить продолжительность аренды?'
+        )
     if promo_length > 8 and promo == 'storage15':
-        promo_err = 'Промокод работает на срок до 2х месяцев включительно, ' \
-                    'хотите сменить продолжительность аренды?'
+        promo_err = (
+            'Промокод работает на срок до 2х месяцев включительно, '
+            'хотите сменить продолжительность аренды?'
+        )
     if promo_err:
         context.user_data['promo'] = promo
         update.message.reply_text(
@@ -292,18 +313,22 @@ def get_promo(update: Update, context: CallbackContext) -> StateEnum:
                 [['Да', 'Нет']],
                 one_time_keyboard=True,
                 resize_keyboard=True,
-            ), )
+            ),
+        )
         return StateEnum.CHANGE_PERIOD
 
     discount = all_promos.get(promo)
     context.user_data['discount'] = float(discount)
     if discount > 0:
         update.message.reply_text(
-            f'Ваша скидка составляет {discount * 100:.0f}%')
+            f'Ваша скидка составляет {discount * 100:.0f}%'
+        )
     return send_full_price(update, context)
 
 
-def send_period_count_question(update: Update, context: CallbackContext) -> StateEnum:
+def send_period_count_question(
+    update: Update, context: CallbackContext
+) -> StateEnum:
     """Send question about number of periods for seasonal things"""
     period_type = context.user_data['period_type']
     period_counts = get_period_counts(period_type)
@@ -341,7 +366,9 @@ def get_change_period(update: Update, context: CallbackContext) -> StateEnum:
     return send_full_price(update, context)
 
 
-def send_period_type_question(update: Update, context: CallbackContext) -> StateEnum:
+def send_period_type_question(
+    update: Update, context: CallbackContext
+) -> StateEnum:
     """Send question about period type of seasonal things"""
     period_types = get_period_types()
     reply_keyboard = [period_types]
@@ -377,7 +404,8 @@ def send_seasonal_cost(update: Update, context: CallbackContext) -> StateEnum:
         update.message.reply_text(
             f'Стоимость хранения вещей '
             f'вида "{seasonal}" в количестве {count} шт. \n'
-            f'составляет {cost[0] * count} р/неделя или {cost[1] * count} р/мес'
+            f'составляет {cost[0] * count} р/неделя '
+            f'или {cost[1] * count} р/мес'
         )
         return send_period_type_question(update, context)
     else:
@@ -404,14 +432,17 @@ def get_count(update: Update, context: CallbackContext) -> StateEnum:
     count = update.message.text
     if not count.isnumeric():
         update.message.reply_text(
-            'Простите, мы храним только целое количество вещей')
+            'Простите, мы храним только целое количество вещей'
+        )
         return send_count_question(update, context)
 
     context.user_data['count'] = count
     return send_seasonal_cost(update, context)
 
 
-def send_seasonal_question(update: Update, context: CallbackContext) -> StateEnum:
+def send_seasonal_question(
+    update: Update, context: CallbackContext
+) -> StateEnum:
     """Send question about seasonal type of things"""
     seasonals = get_seasonals()
     reply_keyboard = keyboard_row_divider(seasonals, 2)
@@ -432,14 +463,17 @@ def get_seasonal(update: Update, context: CallbackContext) -> StateEnum:
     seasonal = update.message.text
     if seasonal not in get_seasonals():
         update.message.reply_text(
-            'Простите, такой вид вещей мы пока не храним')
+            'Простите, такой вид вещей мы пока не храним'
+        )
         return send_seasonal_question(update, context)
 
     context.user_data['seasonal'] = seasonal
     return send_count_question(update, context)
 
 
-def send_period_question(update: Update, context: CallbackContext) -> StateEnum:
+def send_period_question(
+    update: Update, context: CallbackContext
+) -> StateEnum:
     """Send question about period for Other things"""
     periods = get_periods()
     reply_keyboard = keyboard_row_divider(periods, 4)
@@ -466,7 +500,9 @@ def get_period(update: Update, context: CallbackContext) -> StateEnum:
     return send_promo_question(update, context)
 
 
-def send_dimensions_question(update: Update, context: CallbackContext) -> StateEnum:
+def send_dimensions_question(
+    update: Update, context: CallbackContext
+) -> StateEnum:
     """Send question about dimensions for Other things"""
     dimensions = get_dimensions()
     reply_keyboard = keyboard_row_divider(dimensions, 3)
@@ -487,7 +523,8 @@ def get_dimension(update: Update, context: CallbackContext) -> StateEnum:
     dimension = update.message.text
     if dimension not in get_dimensions():
         update.message.reply_text(
-            'Простите, мы сдаем только целочисленную площадь')
+            'Простите, мы сдаем только целочисленную площадь'
+        )
         return send_dimensions_question(update, context)
 
     context.user_data['dimension'] = clear_dimension(dimension)
@@ -526,16 +563,17 @@ def get_type(update: Update, context: CallbackContext) -> StateEnum:
     return ConversationHandler.END
 
 
-def send_locate_question(update: Update, context: CallbackContext) -> StateEnum:
+def send_locate_question(
+    update: Update, context: CallbackContext
+) -> StateEnum:
     """Send question about get locate"""
-    get_locate_yes = KeyboardButton(
-        'Да', request_location=True)
+    get_locate_yes = KeyboardButton('Да', request_location=True)
 
-    get_locate_no = KeyboardButton(
-        'Нет')
+    get_locate_no = KeyboardButton('Нет')
 
-    reply_keyboard = list(keyboard_row_divider(
-        [get_locate_yes, get_locate_no], 2))
+    reply_keyboard = list(
+        keyboard_row_divider([get_locate_yes, get_locate_no], 2)
+    )
 
     update.message.reply_text(
         'Хотите определить расстояние до складов ?',
@@ -544,7 +582,8 @@ def send_locate_question(update: Update, context: CallbackContext) -> StateEnum:
             reply_keyboard,
             one_time_keyboard=True,
             input_field_placeholder='',
-            resize_keyboard=True, )
+            resize_keyboard=True,
+        ),
     )
 
     return StateEnum.LOCATE
@@ -569,12 +608,15 @@ def get_storage_distance(coord_user, storages_data) -> List[float]:
     return distances
 
 
-def send_storage_question(update: Update, context: CallbackContext) -> StateEnum:
+def send_storage_question(
+    update: Update, context: CallbackContext
+) -> StateEnum:
     """Send question about address of storage"""
     storages, storages_data = get_storages()
     if context.user_data['locate']:
         distances = get_storage_distance(
-            context.user_data['locate'], storages_data)
+            context.user_data['locate'], storages_data
+        )
         i = 0
         for x in storages_data:
             storages[i] = f'{x[0]} ({distances[i]:.1f} км)'
@@ -622,12 +664,15 @@ def cancel(update: Update, context: CallbackContext) -> int:
     user = update.message.from_user
     logger.info('User %s canceled the conversation.', user.first_name)
     update.message.reply_text(
-        'Всего доброго!', reply_markup=ReplyKeyboardRemove())
+        'Всего доброго!', reply_markup=ReplyKeyboardRemove()
+    )
 
     return ConversationHandler.END
 
 
-def successful_payment_callback(update: Update, context: CallbackContext) -> int:
+def successful_payment_callback(
+    update: Update, context: CallbackContext
+) -> int:
     """Confirm the successful payment."""
     update.message.reply_text("Спасибо, что пользуетесь нашим сервисом!")
     return get_qr_code(update, context)
@@ -637,20 +682,54 @@ def get_choosing_handler():
     return ConversationHandler(
         entry_points=[CommandHandler('start', start_handler)],
         states={
-            StateEnum.LOCATE: [MessageHandler((Filters.text | Filters.location) & ~Filters.command, get_locate)],
-            StateEnum.STORAGE: [MessageHandler(Filters.text & ~Filters.command, get_storage)],
-            StateEnum.TYPE: [MessageHandler(Filters.text & ~Filters.command, get_type)],
-            StateEnum.DIMENSION: [MessageHandler(Filters.text & ~Filters.command, get_dimension)],
-            StateEnum.PERIOD: [MessageHandler(Filters.text & ~Filters.command, get_period)],
-            StateEnum.SEASONAL: [MessageHandler(Filters.text & ~Filters.command, get_seasonal)],
-            StateEnum.COUNT: [MessageHandler(Filters.text & ~Filters.command, get_count)],
-            StateEnum.PERIOD_TYPE: [MessageHandler(Filters.text & ~Filters.command, get_period_type)],
-            StateEnum.PERIOD_COUNT: [MessageHandler(Filters.text & ~Filters.command, get_period_count)],
-            StateEnum.PROMO: [MessageHandler(Filters.text & ~Filters.command, get_promo)],
-            StateEnum.CHANGE_PERIOD: [MessageHandler(Filters.text & ~Filters.command, get_change_period)],
-            StateEnum.PERSON_DATA: [get_handler_person()]
+            StateEnum.LOCATE: [
+                MessageHandler(
+                    (Filters.text | Filters.location) & ~Filters.command,
+                    get_locate,
+                )
+            ],
+            StateEnum.STORAGE: [
+                MessageHandler(Filters.text & ~Filters.command, get_storage)
+            ],
+            StateEnum.TYPE: [
+                MessageHandler(Filters.text & ~Filters.command, get_type)
+            ],
+            StateEnum.DIMENSION: [
+                MessageHandler(Filters.text & ~Filters.command, get_dimension)
+            ],
+            StateEnum.PERIOD: [
+                MessageHandler(Filters.text & ~Filters.command, get_period)
+            ],
+            StateEnum.SEASONAL: [
+                MessageHandler(Filters.text & ~Filters.command, get_seasonal)
+            ],
+            StateEnum.COUNT: [
+                MessageHandler(Filters.text & ~Filters.command, get_count)
+            ],
+            StateEnum.PERIOD_TYPE: [
+                MessageHandler(
+                    Filters.text & ~Filters.command,
+                )
+            ],
+            StateEnum.PERIOD_COUNT: [
+                MessageHandler(
+                    Filters.text & ~Filters.command, get_period_count
+                )
+            ],
+            StateEnum.PROMO: [
+                MessageHandler(Filters.text & ~Filters.command, get_promo)
+            ],
+            StateEnum.CHANGE_PERIOD: [
+                MessageHandler(
+                    Filters.text & ~Filters.command, get_change_period
+                )
+            ],
+            StateEnum.PERSON_DATA: [get_handler_person()],
         },
         fallbacks=[
             CommandHandler('cancel', cancel),
-            MessageHandler(Filters.successful_payment, successful_payment_callback)],
+            MessageHandler(
+                Filters.successful_payment, successful_payment_callback
+            ),
+        ],
     )
