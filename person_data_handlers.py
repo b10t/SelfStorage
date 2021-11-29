@@ -118,12 +118,12 @@ def show_persion_data(update: Update, context: CallbackContext):
 
     update.effective_message.reply_text(
         f"_Ваши персональные данные_:\n"
-        f"*Фамилия:* {user_data['last_name']}\n"
-        f"*Имя:* {user_data['first_name']}\n"
-        f"*Отчество:* {user_data['middle_name']}\n"
-        f"*Дата рождения:* {user_data['date_birth']}\n"
-        f"*Паспорт:* {user_data['passport']}\n"
-        f"*☎️:* {user_data['telephone']}\n",
+        f"*Фамилия:* `{user_data['last_name']}`\n"
+        f"*Имя:* `{user_data['first_name']}`\n"
+        f"*Отчество:* `{user_data['middle_name']}`\n"
+        f"*Дата рождения:* `{user_data['date_birth']}`\n"
+        f"*Паспорт:* `{user_data['passport']}`\n"
+        f"*☎️:* `{user_data['telephone']}`\n",
         parse_mode=ParseMode.MARKDOWN_V2,
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard,
