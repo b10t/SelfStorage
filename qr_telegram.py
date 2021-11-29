@@ -31,5 +31,3 @@ def get_qr_code(update: Update, context: CallbackContext) -> None:
 def add_qr_handlers(dispatcher) -> None:
     dispatcher.add_handler(CommandHandler(
         "qr", get_qr_code))
-
-    dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
