@@ -274,6 +274,7 @@ def send_promo_question(update: Update, context: CallbackContext) -> StateEnum:
 
 def get_promo(update: Update, context: CallbackContext) -> StateEnum:
     """Handle promo"""
+    context.user_data['discount'] = 0
     promo = update.message.text
     if context.user_data['promo']:
         promo = context.user_data['promo']
@@ -708,7 +709,7 @@ def get_choosing_handler():
             ],
             StateEnum.PERIOD_TYPE: [
                 MessageHandler(
-                    Filters.text & ~Filters.command,
+                    Filters.text & ~Filters.command, get_period_type
                 )
             ],
             StateEnum.PERIOD_COUNT: [
