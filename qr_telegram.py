@@ -1,6 +1,5 @@
-from pyqrcode import QRCode
 import os
-import png
+import qrcode
 
 from telegram import (ForceReply, InlineKeyboardButton, InlineKeyboardMarkup,
                       ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
@@ -21,8 +20,10 @@ def get_qr_code(update: Update, context: CallbackContext) -> None:
     ]
     message_id = update.message.message_id
     text = ' '.join(text_in_code)
-    qr = QRCode(text)
-    qr.png('code.png', scale=10)
+    # qr = QRCode(text)
+    img = qrcode.make(text)
+    # qr.png('code.png', scale=10)
+    img.save("code.png")
     update.message.reply_photo(
         photo=open('code.png', 'rb'),
         reply_to_message_id=message_id,
