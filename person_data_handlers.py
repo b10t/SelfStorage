@@ -240,7 +240,8 @@ def process_answer_yes_no(update: Update, context: CallbackContext):
     if text == 'Да':
         save_user_data_to_db(update, context)
 
-        update.message.reply_text('Данные приняты !\nМожно переходить к оплате',
+        update.message.reply_text('Данные приняты !\n'
+                                  'Можно переходить к оплате',
                                   reply_markup=ReplyKeyboardRemove())
 
         del context.user_data['telephone']
